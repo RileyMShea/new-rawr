@@ -1,20 +1,21 @@
 use serde_json;
-use traits::{Votable, Created, Editable, Content, Commentable, Stickable, Lockable, Flairable,
-             Reportable, Visible, Distinguishable, Approvable};
-use structures::comment_list::{CommentList, CommentStream};
-use structures::user::User;
-use structures::comment::Comment;
-use structures::subreddit::Subreddit;
-use structures::listing::Listing;
-use client::RedditClient;
-use responses::listing;
-use responses::{FlairChoice, FlairSelectorResponse};
-use responses::comment::NewComment;
-use errors::APIError;
+
+
+use crate::responses::{listing, FlairSelectorResponse, FlairChoice};
+use crate::client::RedditClient;
+use crate::traits::{Votable, Editable, Created, Content, Approvable, Commentable, Stickable, Lockable, Reportable, Distinguishable, Flairable, Visible};
+use crate::errors::APIError;
+use crate::structures::user::User;
+use crate::structures::subreddit::Subreddit;
+use crate::responses::comment::{CommentData, NewComment};
+use crate::structures::comment_list::{CommentList, CommentStream};
+use crate::structures::listing::Listing;
+use crate::structures::comment::Comment;
+use crate::responses::listing::CommentResponse;
 
 /// Structure representing a link post or self post (a submission) on Reddit.
 pub struct Submission<'a> {
-    data: listing::Submission,
+    data: listing::SubmissionData,
     client: &'a RedditClient,
 }
 
@@ -59,10 +60,7 @@ impl<'a> Created for Submission<'a> {
 
 impl<'a> Editable for Submission<'a> {
     fn edited(&self) -> bool {
-        match self.data.edited.as_boolean() {
-            Some(edited) => edited,
-            None => true,
-        }
+        self.data.edited.as_bool().unwrap()
     }
 
     fn edited_time(&self) -> Option<i64> {
@@ -154,32 +152,28 @@ impl<'a> Commentable<'a> for Submission<'a> {
                            self.client.url_escape(text.to_owned()),
                            self.name());
         //
-        self.client.post_json::<NewComment>("/api/comment", &body, false)
-           .and_then(|res| {
-               let data = res.json.data.things.into_iter().next().ok_or_else(|| {
-                   serde_json::Error::Syntax(serde_json::ErrorCode::MissingField("things[0]"), 0, 0)
-               });
-               Ok(Comment::new(self.client, try!(data).data))
-           })
+        let result = self.client.post_json("/api/comment", &body, false).unwrap();
+        let result: NewComment = serde_json::from_str(&*result).unwrap();
+
+        Ok(Comment::new(self.client, result.json.data.things.into_iter().next().unwrap().data))
     }
 
     fn replies(self) -> Result<CommentList<'a>, APIError> {
         // TODO: sort type
         let url = format!("/comments/{}", self.data.id);
-        self.client
-            .get_json::<listing::CommentResponse>(&url, false)
-            .and_then(|res| {
-                Ok(CommentList::new(self.client,
-                                    self.data.name.to_owned(),
-                                    self.data.name.to_owned(),
-                                    res.1.data.children))
-            })
+        let result = self.client.get_json(&url, false).unwrap();
+        let result: listing::CommentResponse = serde_json::from_str(&*result).unwrap();
+
+        Ok(CommentList::new(self.client,
+                            self.data.name.to_owned(),
+                            self.data.name.to_owned(),
+                            result.1.data.children))
     }
 }
 
 impl<'a> Submission<'a> {
     /// Internal method. Get submissions from a listing instead (see `Subreddit.hot()` etc.)
-    pub fn new(client: &RedditClient, data: listing::Submission) -> Submission {
+    pub fn new(client: &RedditClient, data: listing::SubmissionData) -> Submission {
         Submission {
             client: client,
             data: data,
@@ -191,8 +185,8 @@ impl<'a> Submission<'a> {
     /// that exist being yielded at a time. This will poll the API every 5 seconds for updates.
     /// # Examples
     /// ```rust,no_run
-    /// use rawr::prelude::*;
-    /// let client = RedditClient::new("rawr", AnonymousAuthenticator::new());
+    /// use new_rawr::prelude::*;
+    /// let client = RedditClient::new("new_rawr", AnonymousAuthenticator::new());
     /// let sub = client.subreddit("all");
     /// let mut listing = sub.hot(ListingOptions::default()).expect("Could not fetch listing!");
     /// let post = listing.nth(0).unwrap();
@@ -361,9 +355,10 @@ impl<'a> Flairable for Submission<'a> {
     fn flair_options(&self) -> Result<FlairList, APIError> {
         let body = format!("link={}", self.data.name);
         let url = format!("/r/{}/api/flairselector", self.data.subreddit);
-        self.client
-            .post_json::<FlairSelectorResponse>(&url, &body, false)
-            .and_then(|res| Ok(FlairList::new(res.choices)))
+        let result = self.client
+            .post_json(&url, &body, false).unwrap();
+        let result: FlairSelectorResponse = serde_json::from_str(&*result).unwrap();
+        Ok(FlairList::new(result.choices))
     }
 
     fn flair(&self, template: &str) -> Result<(), APIError> {
@@ -419,11 +414,11 @@ impl FlairList {
     /// Finds the flair with the specified text, consuming the `FlairList`.
     /// # Examples
     /// ```rust,no_run
-    /// use rawr::client::RedditClient;
-    /// use rawr::auth::PasswordAuthenticator;
-    /// use rawr::options::ListingOptions;
-    /// use rawr::traits::Flairable;
-    /// let client = RedditClient::new("rawr", PasswordAuthenticator::new("a", "b", "c", "d"));
+    /// use new_rawr::client::RedditClient;
+    /// use new_rawr::auth::PasswordAuthenticator;
+    /// use new_rawr::options::ListingOptions;
+    /// use new_rawr::traits::Flairable;
+    /// let client = RedditClient::new("new_rawr", PasswordAuthenticator::new("a", "b", "c", "d"));
     /// let sub = client.subreddit("learnprogramming");
     /// let post = sub.hot(ListingOptions::default()).unwrap().next().unwrap();
     /// // NOTE: this would 403 unless you are a moderator or the creator of the post.
@@ -462,22 +457,22 @@ impl<'a> LazySubmission<'a> {
     /// creation time.
     pub fn get(self) -> Result<Submission<'a>, APIError> {
         let url = format!("/by_id/{}?raw_json=1", self.id);
-        let listing = self.client
-            .get_json::<listing::Listing>(&url, false)
-            .and_then(|res| Ok(Listing::new(self.client, url, res.data)));
-        Ok(try!(listing).nth(0).unwrap())
+        let string = self.client
+            .get_json(&url, false).unwrap();
+        let mut string: listing::Listing = serde_json::from_str(&*string).unwrap();
+        let mut string = Listing::new(self.client, url, string.data);
+        Ok(string.next().unwrap())
     }
 
     /// Fetches a `CommentList` with replies to this submission.
     pub fn replies(self) -> Result<CommentList<'a>, APIError> {
         let url = format!("/comments/{}?raw_json=1", self.id.split('_').nth(1).unwrap());
-        self.client
-            .get_json::<listing::CommentResponse>(&url, false)
-            .and_then(|res| {
-                Ok(CommentList::new(self.client,
-                                    self.id.to_owned(),
-                                    self.id.to_owned(),
-                                    res.1.data.children))
-            })
+        let string = self.client
+            .get_json(&url, false).unwrap();
+        let string :listing::CommentResponse =serde_json::from_str(&*string).unwrap();
+        Ok(CommentList::new(self.client,
+                            self.id.to_owned(),
+                            self.id.to_owned(),
+                            string.1.data.children))
     }
 }

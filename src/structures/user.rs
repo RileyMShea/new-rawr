@@ -1,11 +1,11 @@
-use structures::submission::FlairList;
-use structures::listing::Listing;
-use client::RedditClient;
-use responses::FlairSelectorResponse;
-use responses::user::{UserAbout as _UserAbout, UserAboutData};
-use responses::listing::Listing as _Listing;
-use traits::Created;
-use errors::APIError;
+use crate::structures::submission::FlairList;
+use crate::structures::listing::Listing;
+use crate::client::RedditClient;
+use crate::responses::FlairSelectorResponse;
+use crate::responses::user::{UserAbout as _UserAbout, UserAboutData};
+use crate::responses::listing::Listing as _Listing;
+use crate::traits::Created;
+use crate::errors::APIError;
 
 /// Interface to a Reddit user, which can be used to access their karma and moderator status.
 pub struct User<'a> {
@@ -25,9 +25,9 @@ impl<'a> User<'a> {
     /// Gets information about this user.
     /// # Example
     /// ```
-    /// use rawr::client::RedditClient;
-    /// use rawr::auth::AnonymousAuthenticator;
-    /// let client = RedditClient::new("rawr", AnonymousAuthenticator::new());
+    /// use new_rawr::client::RedditClient;
+    /// use new_rawr::auth::AnonymousAuthenticator;
+    /// let client = RedditClient::new("new_rawr", AnonymousAuthenticator::new());
     /// let user = client.user("Aurora0001").about().expect("User request failed");
     /// assert_eq!(user.id(), "eqyvc");
     /// ```
@@ -43,9 +43,10 @@ impl<'a> User<'a> {
     pub fn flair_options(&self, subreddit: &str) -> Result<FlairList, APIError> {
         let body = format!("user={}", self.name);
         let url = format!("/r/{}/api/flairselector", subreddit);
-        self.client
-            .post_json::<FlairSelectorResponse>(&url, &body, false)
-            .and_then(|res| Ok(FlairList::new(res.choices)))
+        let string = self.client
+            .post_json(&url, &body, false).unwrap();
+        let string: FlairSelectorResponse = serde_json::from_str(&*string).unwrap();
+        Ok(FlairList::new(string.choices))
     }
 
     /// Sets the flair for this user in the specified subreddit, using the specified template
@@ -65,8 +66,8 @@ impl<'a> User<'a> {
     /// listing and will continue yielding items until every item has been exhausted.
     /// # Examples
     /// ```
-    /// use rawr::prelude::*;
-    /// let client = RedditClient::new("rawr", AnonymousAuthenticator::new());
+    /// use new_rawr::prelude::*;
+    /// let client = RedditClient::new("new_rawr", AnonymousAuthenticator::new());
     /// let user = client.user("Aurora0001");
     /// let submissions = user.submissions().expect("Could not fetch!");
     /// let mut i = 0;
@@ -77,9 +78,10 @@ impl<'a> User<'a> {
     /// ```
     pub fn submissions(&self) -> Result<Listing, APIError> {
         let url = format!("/user/{}/submitted?raw_json=1", self.name);
-        self.client
-            .get_json::<_Listing>(&url, false)
-            .and_then(|res| Ok(Listing::new(self.client, url, res.data)))
+        let result = self.client
+            .get_json(&url, false).unwrap();
+        let result: _Listing = serde_json::from_str(&*result).unwrap();
+        Ok(Listing::new(self.client, url, result.data))
     }
     // TODO: implement comment, overview, gilded listings etc.
 }
@@ -93,8 +95,11 @@ impl UserAbout {
     /// Internal method. Use `RedditClient.user(NAME).about()` instead.
     pub fn new(client: &RedditClient, name: String) -> Result<UserAbout, APIError> {
         let url = format!("/user/{}/about?raw_json=1", name);
-        client.get_json::<_UserAbout>(&url, false)
-            .and_then(|res| Ok(UserAbout { data: res.data }))
+        let result = client.get_json(&url, false).unwrap();
+        let result: UserAboutData = serde_json::from_str(&*result).unwrap();
+        Ok(UserAbout{
+            data: result
+        })
     }
 
     /// Gets the user's link karma (including self post karma as of July 19th, 2016).

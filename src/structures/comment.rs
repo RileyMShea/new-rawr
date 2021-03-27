@@ -1,17 +1,18 @@
 use serde_json;
 use serde_json::from_value;
-use traits::{Votable, Created, Editable, Content, Commentable, Reportable, Stickable,
-             Distinguishable, Approvable};
-use structures::comment_list::CommentList;
-use structures::subreddit::Subreddit;
-use structures::user::User;
-use client::RedditClient;
-use responses::comment::{Comment as _Comment, CommentListing, NewComment};
-use errors::APIError;
+
+use crate::client::RedditClient;
+use crate::structures::comment_list::CommentList;
+use crate::traits::{Votable, Created, Editable, Content, Commentable, Approvable, Stickable, Distinguishable, Reportable};
+use crate::errors::APIError;
+use crate::responses::comment::{CommentData};
+use crate::structures::user::User;
+use crate::structures::subreddit::Subreddit;
+use crate::responses::comment::{NewComment, CommentListing};
 
 /// Structure representing a comment and its associated data (e.g. replies)
 pub struct Comment<'a> {
-    data: _Comment,
+    data: CommentData,
     client: &'a RedditClient,
     replies: CommentList<'a>,
 }
@@ -50,10 +51,7 @@ impl<'a> Created for Comment<'a> {
 
 impl<'a> Editable for Comment<'a> {
     fn edited(&self) -> bool {
-        match self.data.edited.as_boolean() {
-            Some(edited) => edited,
-            None => true,
-        }
+        self.data.edited.as_bool().unwrap()
     }
 
     fn edited_time(&self) -> Option<i64> {
@@ -140,13 +138,10 @@ impl<'a> Commentable<'a> for Comment<'a> {
         let body = format!("api_type=json&text={}&thing_id={}",
                            self.client.url_escape(text.to_owned()),
                            self.name());
-        self.client.post_json::<NewComment>("/api/comment", &body, false)
-           .and_then(|res| {
-               let data = res.json.data.things.into_iter().next().ok_or_else(|| {
-                   serde_json::Error::Syntax(serde_json::ErrorCode::MissingField("things[0]"), 0, 0)
-               });
-               Ok(Comment::new(self.client, try!(data).data))
-           })
+        let result = self.client.post_json("/api/comment", &body, false).unwrap();
+        let result: NewComment = serde_json::from_str(&*result).unwrap();
+        Ok(Comment::new(self.client, result.json.data.things.into_iter().next().unwrap().data))
+
     }
 
     fn replies(self) -> Result<CommentList<'a>, APIError> {
@@ -157,7 +152,7 @@ impl<'a> Commentable<'a> for Comment<'a> {
 impl<'a> Comment<'a> {
     /// Internal method. Use `Submission.replies()` or `Comment.replies()` to get a listing, then
     /// select the desired comment instead.
-    pub fn new(client: &RedditClient, data: _Comment) -> Comment {
+    pub fn new(client: &RedditClient, data: CommentData) -> Comment {
         let comments = if data.replies.is_object() {
             // TODO: avoid cloning here
             let listing = from_value::<CommentListing>(data.replies.clone()).unwrap();

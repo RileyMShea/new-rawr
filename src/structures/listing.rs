@@ -3,20 +3,20 @@ use std::collections::VecDeque;
 use std::thread;
 use std::time::Duration;
 
-use responses::listing;
-use client::RedditClient;
-use structures::submission::Submission;
-use traits::{Content, PageListing};
-use errors::APIError;
+use crate::responses::listing;
+use crate::client::RedditClient;
+use crate::structures::submission::Submission;
+use crate::traits::{Content, PageListing};
+use crate::errors::APIError;
 
 /// A paginated listing of posts that can be iterated through. Posts are fetched lazily
 /// until the listing is exhausted (similar to an infinite scroll of posts).
 /// # Examples
 /// ```rust,no_run
-/// use rawr::client::RedditClient;
-/// use rawr::options::ListingOptions;
-/// use rawr::auth::AnonymousAuthenticator;
-/// let client = RedditClient::new("rawr", AnonymousAuthenticator::new());
+/// use new_rawr::client::RedditClient;
+/// use new_rawr::options::ListingOptions;
+/// use new_rawr::auth::AnonymousAuthenticator;
+/// let client = RedditClient::new("new_rawr", AnonymousAuthenticator::new());
 /// let sub = client.subreddit("redditdev");
 /// let mut hot = sub.hot(ListingOptions::default()).expect("Could not get hot posts");
 /// for post in hot.take(500) {
@@ -31,14 +31,14 @@ use errors::APIError;
 /// to page.
 ///
 /// ## Improving Performance
-/// By default, rawr paginates using the same `limit` parameter as you
+/// By default, new_rawr paginates using the same `limit` parameter as you
 /// (`ListingOptions::default()` sets it to 25), so by default you can only fetch 25 posts
 /// at a time. Create a `ListingOptions` object with a batch size of 100 to reduce the amount of
 /// requests that are needed, like this:
 ///
 /// ```
-/// # use rawr::options::ListingOptions;
-/// use rawr::options::ListingAnchor;
+/// # use new_rawr::options::ListingOptions;
+/// use new_rawr::options::ListingAnchor;
 /// ListingOptions {
 ///     batch: 100,
 ///     anchor: ListingAnchor::None
@@ -51,14 +51,14 @@ use errors::APIError;
 pub struct Listing<'a> {
     client: &'a RedditClient,
     query_stem: String,
-    data: listing::ListingData<listing::Submission>,
+    data: listing::ListingData<listing::SubmissionData>,
 }
 
 impl<'a> Listing<'a> {
     /// Internal method. Use other functions that return Listings, such as `Subreddit.hot()`.
     pub fn new(client: &RedditClient,
                query_stem: String,
-               data: listing::ListingData<listing::Submission>)
+               data: listing::ListingData<listing::SubmissionData>)
                -> Listing {
         Listing {
             client: client,
@@ -87,11 +87,11 @@ impl<'a> Listing<'a> {
         match self.after() {
             Some(after_id) => {
                 let url = format!("{}&after={}", self.query_stem, after_id);
-                self.client
-                    .get_json::<listing::Listing>(&url, false)
-                    .and_then(|res| {
-                        Ok(Listing::new(self.client, self.query_stem.to_owned(), res.data))
-                    })
+                let string = self.client
+                    .get_json(&url, false).unwrap();
+                let string :listing::Listing= serde_json::from_str(&*string).unwrap();
+                Ok(Listing::new(self.client, self.query_stem.to_owned(), string.data))
+
             }
             None => Err(APIError::ExhaustedListing),
         }
@@ -176,9 +176,11 @@ impl<'a> Iterator for PostStream<'a> {
             }
         } else {
             thread::sleep(Duration::new(5, 0));
-            let req: Result<listing::Listing, APIError> = self.client.get_json(&self.url, false);
-            let current_iter = if let Ok(res) = req {
-                Some(res.data
+            let req= self.client.get_json(&self.url, false);
+            let current_iter = if let Ok(req) = req {
+                let req : listing::Listing=serde_json::from_str(&*req).unwrap();
+
+                Some(req.data
                     .children
                     .into_iter()
                     .map(|i| Submission::new(self.client, i.data))

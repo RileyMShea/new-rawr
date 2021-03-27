@@ -1,8 +1,8 @@
 use std::error::Error;
 use std::fmt::{Display, Result as FmtResult, Formatter};
-use hyper::status::StatusCode;
 use hyper;
 use serde_json;
+use hyper::StatusCode;
 
 /// Error type that occurs when an API request fails for some reason.
 #[derive(Debug)]
@@ -33,7 +33,7 @@ impl Error for APIError {
             APIError::HTTPError(_) => "The API returned a non-success error code",
             APIError::HyperError(_) => "An error occurred while processing the HTTP response",
             APIError::JSONError(_) => {
-                "The JSON sent by Reddit did not match what rawr was expecting"
+                "The JSON sent by Reddit did not match what new_rawr was expecting"
             }
             _ => "This error should not have occurred. Please file a bug",
         }

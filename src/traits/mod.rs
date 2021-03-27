@@ -1,9 +1,11 @@
-use structures::comment_list::CommentList;
-use structures::submission::FlairList;
-use structures::user::User;
-use structures::subreddit::Subreddit;
-use structures::comment::Comment;
-use errors::APIError;
+
+use crate::responses::comment::CommentData;
+use crate::errors::APIError;
+use crate::structures::comment_list::CommentList;
+use crate::structures::user::User;
+use crate::structures::subreddit::Subreddit;
+use crate::structures::submission::FlairList;
+use crate::structures::comment::Comment;
 
 /// An object that can be voted upon and has a score based on the upvotes - downvotes.
 /// ## Notes
@@ -98,7 +100,7 @@ pub trait Commentable<'a> {
     /// The number of comments on this object. Prefer this to `replies().count()`.
     fn reply_count(&self) -> u64;
     /// Sends a reply with the specified body.
-    fn reply(&self, &str) -> Result<Comment, APIError>;
+    fn reply(&self, comment: &str) -> Result<Comment, APIError>;
     /// Gets all replies as a self-paginating `CommentList`, which can be iterated through as
     /// necessary. Comments cannot be batched like submission listings, so there may be
     /// multiple requests on large threads to get all comments.

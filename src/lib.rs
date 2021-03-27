@@ -1,9 +1,9 @@
 #![deny(missing_docs)]
 
-//! # rawr - Rust API Wrapper for Reddit
+//! # new_rawr - Rust API Wrapper for Reddit
 //! This crate provides simple yet powerful access to the Reddit API.
 //! ## Quick Start
-//! This section will teach you the basics of `rawr`, so you can get started with your project
+//! This section will teach you the basics of `new_rawr`, so you can get started with your project
 //! easily.
 //! ### Creating a Client
 //! To create a client to access the Reddit API, you can use the `RedditClient` class. All you need
@@ -16,22 +16,22 @@
 //! [auth](./auth/index.html) module documentation to find out how to log in to an account.
 //!
 //! ```rust,no_run
-//! use rawr::client::RedditClient;
-//! use rawr::auth::AnonymousAuthenticator;
+//! use new_rawr::client::RedditClient;
+//! use new_rawr::auth::AnonymousAuthenticator;
 //! let client = RedditClient::new("my user agent", AnonymousAuthenticator::new());
 //! ```
 //!
 //! It is important that you pick a good user agent. The ideal format is
-//! `platform:program:version (by /u/yourname)`, e.g. `linux:rawr:v0.0.1 (by /u/Aurora0001)`.
+//! `platform:program:version (by /u/yourname)`, e.g. `linux:new_rawr:v0.0.1 (by /u/Aurora0001)`.
 //!
 //! ### Getting a List of Posts
 //! First, you'll need to select the subreddit that you want to get a listing from. For our
 //! example, we'll use /r/all. To get that subreddit, we can do this:
 //!
 //! ```rust,no_run
-//! # use rawr::client::RedditClient;
-//! # use rawr::auth::AnonymousAuthenticator;
-//! let client = RedditClient::new("?:rawr:doc-tests", AnonymousAuthenticator::new());
+//! # use new_rawr::client::RedditClient;
+//! # use new_rawr::auth::AnonymousAuthenticator;
+//! let client = RedditClient::new("?:new_rawr:doc-tests", AnonymousAuthenticator::new());
 //! let all = client.subreddit("all");
 //! ```
 //!
@@ -50,10 +50,10 @@
 //! Here's an example of using the `hot` listing:
 //!
 //! ```rust,no_run
-//! # use rawr::client::RedditClient;
-//! # use rawr::auth::AnonymousAuthenticator;
-//! use rawr::options::ListingOptions;
-//! # let client = RedditClient::new("?:rawr:doc-tests", AnonymousAuthenticator::new());
+//! # use new_rawr::client::RedditClient;
+//! # use new_rawr::auth::AnonymousAuthenticator;
+//! use new_rawr::options::ListingOptions;
+//! # let client = RedditClient::new("?:new_rawr:doc-tests", AnonymousAuthenticator::new());
 //! # let all = client.subreddit("all");
 //! let listing = all.hot(ListingOptions::default()).expect("Request unsuccessful");
 //! ```
@@ -72,10 +72,10 @@
 //! multiple posts. You can just use a for loop, like this:
 //!
 //! ```rust,no_run
-//! # use rawr::client::RedditClient;
-//! # use rawr::auth::AnonymousAuthenticator;
-//! # use rawr::options::ListingOptions;
-//! # let client = RedditClient::new("?:rawr:doc-tests", AnonymousAuthenticator::new());
+//! # use new_rawr::client::RedditClient;
+//! # use new_rawr::auth::AnonymousAuthenticator;
+//! # use new_rawr::options::ListingOptions;
+//! # let client = RedditClient::new("?:new_rawr:doc-tests", AnonymousAuthenticator::new());
 //! # let all = client.subreddit("all");
 //! let listing = all.hot(ListingOptions::default()).expect("Could not fetch posts");
 //! for post in listing {
@@ -92,11 +92,11 @@
 //! listing:
 //!
 //! ```rust,no_run
-//! # use rawr::auth::AnonymousAuthenticator;
-//! # use rawr::client::RedditClient;
-//! # use rawr::options::ListingOptions;
-//! use rawr::traits::{Commentable, Content};
-//! # let client = RedditClient::new("rawr", AnonymousAuthenticator::new());
+//! # use new_rawr::auth::AnonymousAuthenticator;
+//! # use new_rawr::client::RedditClient;
+//! # use new_rawr::options::ListingOptions;
+//! use new_rawr::traits::{Commentable, Content};
+//! # let client = RedditClient::new("new_rawr", AnonymousAuthenticator::new());
 //! let all = client.subreddit("all");
 //! for post in all.hot(ListingOptions::default()).expect("Request failed") {
 //!     if let Some(comment) = post.replies().expect("Could not get replies").next() {
@@ -119,11 +119,11 @@
 //! You can reply like this:
 //!
 //! ```rust,no_run
-//! # use rawr::auth::AnonymousAuthenticator;
-//! # use rawr::client::RedditClient;
-//! # use rawr::options::ListingOptions;
-//! # use rawr::traits::{Commentable, Content};
-//! # let client = RedditClient::new("rawr", AnonymousAuthenticator::new());
+//! # use new_rawr::auth::AnonymousAuthenticator;
+//! # use new_rawr::client::RedditClient;
+//! # use new_rawr::options::ListingOptions;
+//! # use new_rawr::traits::{Commentable, Content};
+//! # let client = RedditClient::new("new_rawr", AnonymousAuthenticator::new());
 //! let all = client.subreddit("all");
 //! let mut listing = all.hot(ListingOptions::default()).expect("Request failed");
 //! if let Some(top_post) = listing.next() {
@@ -145,7 +145,7 @@
 //! `LinkPost` object that can configure your post, like this:
 //!
 //! ```
-//! use rawr::options::LinkPost;
+//! use new_rawr::options::LinkPost;
 //! let post = LinkPost::new("title", "https://example.com");
 //! ```
 //!
@@ -153,19 +153,19 @@
 //! this:
 //!
 //! ```
-//! # use rawr::options::LinkPost;
+//! # use new_rawr::options::LinkPost;
 //! let post = LinkPost::new("title", "https://example.com").resubmit();
 //! ```
 //!
 //! You can then submit it, like this:
 //!
 //! ```rust,no_run
-//! # use rawr::auth::AnonymousAuthenticator;
-//! # use rawr::client::RedditClient;
-//! # use rawr::options::ListingOptions;
-//! # use rawr::traits::{Commentable, Content};
-//! use rawr::options::LinkPost;
-//! # let client = RedditClient::new("rawr", AnonymousAuthenticator::new());
+//! # use new_rawr::auth::AnonymousAuthenticator;
+//! # use new_rawr::client::RedditClient;
+//! # use new_rawr::options::ListingOptions;
+//! # use new_rawr::traits::{Commentable, Content};
+//! use new_rawr::options::LinkPost;
+//! # let client = RedditClient::new("new_rawr", AnonymousAuthenticator::new());
 //! let programming = client.subreddit("programming");
 //! let post = LinkPost::new("I love Rust!", "https://rust-lang.org");
 //! programming.submit_link(post).expect("Could not submit link!");
@@ -175,19 +175,19 @@
 //! on the `SelfPost` struct. Example:
 //!
 //! ```rust,no_run
-//! # use rawr::auth::AnonymousAuthenticator;
-//! # use rawr::client::RedditClient;
-//! # use rawr::options::ListingOptions;
-//! # use rawr::traits::{Commentable, Content};
-//! use rawr::options::SelfPost;
-//! # let client = RedditClient::new("rawr", AnonymousAuthenticator::new());
+//! # use new_rawr::auth::AnonymousAuthenticator;
+//! # use new_rawr::client::RedditClient;
+//! # use new_rawr::options::ListingOptions;
+//! # use new_rawr::traits::{Commentable, Content};
+//! use new_rawr::options::SelfPost;
+//! # let client = RedditClient::new("new_rawr", AnonymousAuthenticator::new());
 //! let programming = client.subreddit("programming");
 //! let post = SelfPost::new("I love Rust!", "It's great! **Wow**!");
 //! programming.submit_text(post).expect("Could not submit link!");
 //! ```
 //!
 //! # More Advanced Features
-//! `rawr` also supports:
+//! `new_rawr` also supports:
 //! - Getting a user by name (see `RedditClient.user("name")`)
 //! - Setting user flairs (see the `user` module)
 //! - Setting post flairs (see `Submission.flair`)
@@ -202,6 +202,7 @@
 extern crate serde;
 extern crate serde_json;
 extern crate hyper;
+extern crate futures;
 
 pub mod auth;
 pub mod client;
@@ -215,18 +216,20 @@ pub mod errors;
 pub mod structures;
 /// Configuration options for API requests.
 pub mod options;
-/// Basic `rawr` structures to import with `use rawr::prelude::*`;
-pub mod prelude;
+/// Basic `new_rawr` structures to import with `use new_rawr::prelude::*`;
 
 #[cfg(test)]
 mod tests {
-    use client::RedditClient;
-    use structures::submission::Submission;
-    use options::ListingOptions;
-    use auth::AnonymousAuthenticator;
+    use hyper::Client;
+    use crate::auth::AnonymousAuthenticator;
+    use crate::client::RedditClient;
+    use crate::options::ListingOptions;
+    use crate::responses::listing::SubmissionData;
+    use crate::structures::submission::Submission;
+
     #[test]
     fn hot_length() {
-        let client = RedditClient::new("rawr", AnonymousAuthenticator::new());
+        let client = RedditClient::new("new_rawr", AnonymousAuthenticator::new());
         let r_all = client.subreddit("all");
         let hot = r_all.hot(ListingOptions::default()).expect("Request failed!");
         let hot_list = hot.take(26).collect::<Vec<Submission>>();

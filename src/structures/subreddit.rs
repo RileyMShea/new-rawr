@@ -1,11 +1,11 @@
 #![allow(unknown_lints, wrong_self_convention, new_ret_no_self)]
-use client::RedditClient;
-use options::{ListingOptions, TimeFilter, LinkPost, SelfPost};
-use structures::listing::Listing;
-use responses::listing;
-use traits::Created;
-use errors::APIError;
-use structures::listing::PostStream;
+use crate::client::RedditClient;
+use crate::options::{ListingOptions, TimeFilter, LinkPost, SelfPost};
+use crate::structures::listing::Listing;
+use crate::responses::listing;
+use crate::traits::Created;
+use crate::errors::APIError;
+use crate::structures::listing::PostStream;
 
 /// The `Subreddit` struct represents a subreddit and allows access to post listings
 /// and data about the subreddit.
@@ -27,9 +27,11 @@ impl<'a> Subreddit<'a> {
         // on.
         let uri = format!("/r/{}/{}limit={}&raw_json=1", self.name, ty, opts.batch);
         let full_uri = format!("{}&{}", uri, opts.anchor);
-        self.client
-            .get_json::<listing::Listing>(&full_uri, false)
-            .and_then(|res| Ok(Listing::new(self.client, uri, res.data)))
+        let string = self.client
+            .get_json(&full_uri, false).unwrap();
+        println!("{}",&string);
+        let string: listing::Listing =serde_json::from_str(&*string).unwrap();
+        Ok(Listing::new(self.client, uri, string.data))
     }
 
     /// Creates a `Subreddit` from a client and the subreddit's name. Do not use this directly -
@@ -45,10 +47,10 @@ impl<'a> Subreddit<'a> {
     /// posts in addtion to the expected posts.
     /// # Examples
     /// ```
-    /// use rawr::client::RedditClient;
-    /// use rawr::options::ListingOptions;
-    /// use rawr::auth::AnonymousAuthenticator;
-    /// let client = RedditClient::new("rawr", AnonymousAuthenticator::new());
+    /// use new_rawr::client::RedditClient;
+    /// use new_rawr::options::ListingOptions;
+    /// use new_rawr::auth::AnonymousAuthenticator;
+    /// let client = RedditClient::new("new_rawr", AnonymousAuthenticator::new());
     /// let sub = client.subreddit("askreddit");
     /// let hot = sub.hot(ListingOptions::default());
     /// ```
@@ -60,8 +62,8 @@ impl<'a> Subreddit<'a> {
     /// forever, unless it is manually ended at some point. For tips, check the `PostStream` class.
     /// # Examples
     /// ```rust,no_run
-    /// use rawr::prelude::*;
-    /// let client = RedditClient::new("rawr", AnonymousAuthenticator::new());
+    /// use new_rawr::prelude::*;
+    /// let client = RedditClient::new("new_rawr", AnonymousAuthenticator::new());
     /// let askreddit = client.subreddit("askreddit");
     /// for post in askreddit.new_stream() {
     ///
@@ -75,11 +77,11 @@ impl<'a> Subreddit<'a> {
     /// Gets a listing of the new feed for this subreddit.
     /// # Examples
     /// ```
-    /// use rawr::client::RedditClient;
-    /// use rawr::options::ListingOptions;
-    /// use rawr::traits::Content;
-    /// use rawr::auth::AnonymousAuthenticator;
-    /// let client = RedditClient::new("rawr", AnonymousAuthenticator::new());
+    /// use new_rawr::client::RedditClient;
+    /// use new_rawr::options::ListingOptions;
+    /// use new_rawr::traits::Content;
+    /// use new_rawr::auth::AnonymousAuthenticator;
+    /// let client = RedditClient::new("new_rawr", AnonymousAuthenticator::new());
     /// let sub = client.subreddit("programming");
     /// let mut new = sub.new(ListingOptions::default()).expect("Could not get new feed");
     /// assert_eq!(new.next().unwrap().subreddit().name, "programming");
@@ -92,10 +94,10 @@ impl<'a> Subreddit<'a> {
     /// listings; may be empty.
     /// # Examples
     /// ```
-    /// use rawr::client::RedditClient;
-    /// use rawr::options::ListingOptions;
-    /// use rawr::auth::AnonymousAuthenticator;
-    /// let client = RedditClient::new("rawr", AnonymousAuthenticator::new());
+    /// use new_rawr::client::RedditClient;
+    /// use new_rawr::options::ListingOptions;
+    /// use new_rawr::auth::AnonymousAuthenticator;
+    /// let client = RedditClient::new("new_rawr", AnonymousAuthenticator::new());
     /// let sub = client.subreddit("thanksobama");
     /// let rising = sub.rising(ListingOptions::default()).unwrap();
     /// assert_eq!(rising.count(), 0);
@@ -106,14 +108,14 @@ impl<'a> Subreddit<'a> {
 
 
     /// Gets a listing of the top feed for this subreddit. Also requires a time filter (
-    /// `rawr::options::TimeFilter`) which is equivalent to the "links from: all time" dropdown
+    /// `new_rawr::options::TimeFilter`) which is equivalent to the "links from: all time" dropdown
     /// on the website.
     /// # Examples
     /// ```
-    /// use rawr::client::RedditClient;
-    /// use rawr::options::{ListingOptions, TimeFilter};
-    /// use rawr::auth::AnonymousAuthenticator;
-    /// let client = RedditClient::new("rawr", AnonymousAuthenticator::new());
+    /// use new_rawr::client::RedditClient;
+    /// use new_rawr::options::{ListingOptions, TimeFilter};
+    /// use new_rawr::auth::AnonymousAuthenticator;
+    /// let client = RedditClient::new("new_rawr", AnonymousAuthenticator::new());
     /// let sub = client.subreddit("thanksobama");
     /// let mut top = sub.top(ListingOptions::default(), TimeFilter::AllTime)
     ///     .expect("Request failed");
@@ -125,7 +127,7 @@ impl<'a> Subreddit<'a> {
     }
 
     /// Gets a listing of the controversial feed for this subreddit. Also requires a time filter (
-    /// `rawr::options::TimeFilter`) which is equivalent to the "links from: all time" dropdown
+    /// `new_rawr::options::TimeFilter`) which is equivalent to the "links from: all time" dropdown
     /// on the website.
     pub fn controversial(&self,
                          opts: ListingOptions,
@@ -140,17 +142,17 @@ impl<'a> Subreddit<'a> {
     /// # Examples
     /// ## Allowing a link to be reposted
     /// ```
-    /// use rawr::options::LinkPost;
-    /// let post = LinkPost::new("rawr!", "http://example.com").resubmit();
+    /// use new_rawr::options::LinkPost;
+    /// let post = LinkPost::new("new_rawr!", "http://example.com").resubmit();
     /// ```
     /// ## Submitting a post
     /// ```rust,no_run
-    /// use rawr::auth::PasswordAuthenticator;
-    /// use rawr::client::RedditClient;
-    /// use rawr::options::LinkPost;
-    /// let client = RedditClient::new("rawr", PasswordAuthenticator::new("a", "b", "c", "d"));
+    /// use new_rawr::auth::PasswordAuthenticator;
+    /// use new_rawr::client::RedditClient;
+    /// use new_rawr::options::LinkPost;
+    /// let client = RedditClient::new("new_rawr", PasswordAuthenticator::new("a", "b", "c", "d"));
     /// let sub = client.subreddit("rust");
-    /// let post = LinkPost::new("rawr!", "http://example.com");
+    /// let post = LinkPost::new("new_rawr!", "http://example.com");
     /// sub.submit_link(post).expect("Posting failed!");
     /// ```
     pub fn submit_link(&self, post: LinkPost) -> Result<(), APIError> {
@@ -167,12 +169,12 @@ impl<'a> Subreddit<'a> {
     /// # Examples
     /// ## Submitting a post
     /// ```rust,no_run
-    /// use rawr::auth::PasswordAuthenticator;
-    /// use rawr::client::RedditClient;
-    /// use rawr::options::SelfPost;
-    /// let client = RedditClient::new("rawr", PasswordAuthenticator::new("a", "b", "c", "d"));
+    /// use new_rawr::auth::PasswordAuthenticator;
+    /// use new_rawr::client::RedditClient;
+    /// use new_rawr::options::SelfPost;
+    /// let client = RedditClient::new("new_rawr", PasswordAuthenticator::new("a", "b", "c", "d"));
     /// let sub = client.subreddit("rust");
-    /// let post = SelfPost::new("I love rawr!", "You should download it *right now*!");
+    /// let post = SelfPost::new("I love new_rawr!", "You should download it *right now*!");
     /// sub.submit_text(post).expect("Posting failed!");
     /// ```
     pub fn submit_text(&self, post: SelfPost) -> Result<(), APIError> {
@@ -188,18 +190,20 @@ impl<'a> Subreddit<'a> {
     /// information.
     /// # Examples
     /// ```
-    /// use rawr::client::RedditClient;
-    /// use rawr::auth::AnonymousAuthenticator;
-    /// let client = RedditClient::new("rawr", AnonymousAuthenticator::new());
+    /// use new_rawr::client::RedditClient;
+    /// use new_rawr::auth::AnonymousAuthenticator;
+    /// let client = RedditClient::new("new_rawr", AnonymousAuthenticator::new());
     /// let learn_programming = client.subreddit("learnprogramming").about()
     ///     .expect("Could not fetch 'about' data");
     /// assert_eq!(learn_programming.display_name(), "learnprogramming");
     /// ```
     pub fn about(&self) -> Result<SubredditAbout, APIError> {
         let url = format!("/r/{}/about?raw_json=1", self.name);
-        self.client
-            .get_json::<listing::SubredditAbout>(&url, false)
-            .and_then(|res| Ok(SubredditAbout::new(res.data)))
+
+        let string = self.client
+            .get_json(&url, false).unwrap();
+        let string: listing::SubredditAboutData =serde_json::from_str(&*string).unwrap();
+        Ok(SubredditAbout::new(string))
     }
 
     /// Subscribes to the specified subredit, returning the result to show whether the API call

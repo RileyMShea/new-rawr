@@ -9,9 +9,9 @@
 //! with Reddit API rules.
 //!
 //! The recommended format for user agent strings is `platform:program:version (by /u/yourname)`,
-//! e.g. `linux:rawr:v0.0.1 (by /u/Aurora0001)`.
+//! e.g. `linux:new_rawr:v0.0.1 (by /u/Aurora0001)`.
 //!
-//! You also need to pass in an *Authenticator*. `rawr` provides multiple authenticators that
+//! You also need to pass in an *Authenticator*. `new_rawr` provides multiple authenticators that
 //! use the different authentication flows provided by Reddit. To get started, you may just want
 //! to browse anonymously. For this, `AnonymousAuthenticator` is provided, which can browse
 //! reddit without any IDs or credentials.
@@ -21,35 +21,41 @@
 //! for examples of usage and benefits of this.
 //!
 //! ```
-//! use rawr::client::RedditClient;
-//! use rawr::auth::AnonymousAuthenticator;
-//! let agent = "linux:rawr:v0.0.1 (by /u/Aurora0001)";
+//! use new_rawr::client::RedditClient;
+//! use new_rawr::auth::AnonymousAuthenticator;
+//! let agent = "linux:new_rawr:v0.0.1 (by /u/Aurora0001)";
 //! let client = RedditClient::new(agent, AnonymousAuthenticator::new());
 //! ```
 
 use std::sync::{Arc, Mutex, MutexGuard};
 use std::io::Read;
 
-use hyper::client::{Client, RequestBuilder};
-use hyper::header::UserAgent;
-use hyper::net::DefaultConnector;
-use hyper::status::StatusCode::Unauthorized;
+use hyper::client::{Client, HttpConnector};
+use hyper::{StatusCode, Request, Method, Body};
 
 use serde_json::from_str;
 use serde::Deserialize;
 
-use structures::subreddit::Subreddit;
-use structures::user::User;
-use structures::submission::LazySubmission;
-use structures::messages::MessageInterface;
-use auth::Authenticator;
-use errors::APIError;
+
+use hyper::Uri;
+use std::str::FromStr;
+use hyper::header::USER_AGENT;
+use crate::errors::APIError;
+use crate::auth::Authenticator;
+use crate::structures::subreddit::Subreddit;
+use crate::structures::user::User;
+use futures::AsyncReadExt;
+use crate::structures::submission::LazySubmission;
+use crate::structures::messages::MessageInterface;
+use hyper::http::request::Builder;
+use std::borrow::Borrow;
+use hyper_tls::HttpsConnector;
 
 /// A client to connect to Reddit. See the module-level documentation for examples.
 pub struct RedditClient {
     /// The internal HTTP client. You should not need to manually use this. If you do, file an
     /// issue saying why the API does not support your use-case, and we'll try to add it.
-    pub client: Client,
+    pub client: Client<HttpsConnector<HttpConnector>>,
     user_agent: String,
     authenticator: Arc<Mutex<Box<Authenticator + Send>>>,
     auto_logout: bool,
@@ -63,8 +69,8 @@ impl RedditClient {
                -> RedditClient {
         // Connection pooling is problematic if there are pauses/sleeps in the program, so we
         // choose to disable it by using a non-pooling connector.
-        let client = Client::with_connector(DefaultConnector::default());
-
+        let https = HttpsConnector::new();
+        let client = Client::builder().build::<_, hyper::Body>(https);
         let this = RedditClient {
             client: client,
             user_agent: user_agent.to_owned(),
@@ -86,9 +92,9 @@ impl RedditClient {
     /// This will **not** affect the client ID or client secret.
     /// # Examples
     /// ```rust,no_run
-    /// use rawr::client::RedditClient;
-    /// use rawr::auth::PasswordAuthenticator;
-    /// let mut client = RedditClient::new("rawr", PasswordAuthenticator::new("a", "b", "c", "d"));
+    /// use new_rawr::client::RedditClient;
+    /// use new_rawr::auth::PasswordAuthenticator;
+    /// let mut client = RedditClient::new("new_rawr", PasswordAuthenticator::new("a", "b", "c", "d"));
     /// client.set_auto_logout(false); // Auto-logout disabled. Set to `true` to enable.
     /// ```
     pub fn set_auto_logout(&mut self, val: bool) {
@@ -103,8 +109,8 @@ impl RedditClient {
     {
         let res = lambda();
         match res {
-            Err(APIError::HTTPError(Unauthorized)) => {
-                try!(self.get_authenticator().refresh_token(&self.client, &self.user_agent));
+            Err(APIError::HTTPError(StatusCode::UNAUTHORIZED)) => {
+                self.get_authenticator().refresh_token(&self.client, &self.user_agent);
                 lambda()
             }
             _ => res,
@@ -151,29 +157,38 @@ impl RedditClient {
     /// Wrapper around the `get` function of `hyper::client::Client`, which sends a HTTP GET
     /// request. The correct user agent header is also sent using this function, which is necessary
     /// to prevent 403 errors.
-    pub fn get(&self, dest: &str, oauth_required: bool) -> RequestBuilder {
+    pub fn get(&self, dest: &str, oauth_required: bool) -> Builder {
         let mut authenticator = self.get_authenticator();
         let url = self.build_url(dest, oauth_required, &mut authenticator);
-        let req = self.client.get(&url);
-        let mut headers = authenticator.headers();
-        headers.set(UserAgent(self.user_agent.to_owned()));
-        req.headers(headers)
+
+        let mut builder = (Builder::new());
+
+        for x in authenticator.headers() {
+            builder = builder.header(x.0, x.1);
+        }
+        builder.method(Method::GET).uri(url).header(USER_AGENT, self.user_agent.to_owned())
     }
+    // let mut authenticator = self.get_authenticator();
+    // let url = self.build_url(dest, oauth_required, &mut authenticator);
+    // let req = self.client.get(Uri::from_str(url.as_str()).unwrap());
+    // let mut headers = authenticator.headers();
+    // headers.insert(USER_AGENT,(self.user_agent.to_owned().parse().unwrap()));
+    // req.headers(headers)
 
     /// Sends a GET request with the specified parameters, and returns the resulting
     /// deserialized object.
-    pub fn get_json<T>(&self, dest: &str, oauth_required: bool) -> Result<T, APIError>
-        where T: Deserialize
-    {
+    pub fn get_json(&self, dest: &str, oauth_required: bool) -> Result<String, APIError> {
         self.ensure_authenticated(|| {
-            let mut response = try!(self.get(dest, oauth_required).send());
-            if response.status.is_success() {
-                let mut buf = String::new();
-                response.read_to_string(&mut buf).expect("Buffer read failed");
-                let json: T = try!(from_str(&buf));
-                Ok(json)
+            let request = self.get(dest, oauth_required).body(Body::empty()).unwrap();
+
+            let runtime = tokio::runtime::Runtime::new().expect("Unable to create a runtime");
+
+            let response = runtime.block_on(self.client.request(request)).unwrap();
+            if response.status().is_success() {
+                let value = runtime.block_on(hyper::body::to_bytes(response.into_body()));
+                Ok(String::from_utf8(value.unwrap().to_vec()).unwrap().parse().unwrap())
             } else {
-                Err(APIError::HTTPError(response.status))
+                Err(APIError::HTTPError(response.status()))
             }
         })
     }
@@ -181,29 +196,30 @@ impl RedditClient {
     /// Wrapper around the `post` function of `hyper::client::Client`, which sends a HTTP POST
     /// request. The correct user agent header is also sent using this function, which is necessary
     /// to prevent 403 errors.
-    pub fn post(&self, dest: &str, oauth_required: bool) -> RequestBuilder {
+    pub fn post(&self, dest: &str, oauth_required: bool) -> Builder {
         let mut authenticator = self.get_authenticator();
         let url = self.build_url(dest, oauth_required, &mut authenticator);
-        let req = self.client.post(&url);
-        let mut headers = authenticator.headers();
-        headers.set(UserAgent(self.user_agent.to_owned()));
-        req.headers(headers)
+        let mut builder = Request::builder().method(Method::POST).uri(url);
+        for x in authenticator.headers() {
+            builder = builder.header(x.0, x.1);
+        };
+        builder.header(USER_AGENT, self.user_agent.to_owned())
     }
 
     /// Sends a post request with the specified parameters, and converts the resulting JSON
     /// into a deserialized object.
-    pub fn post_json<T>(&self, dest: &str, body: &str, oauth_required: bool) -> Result<T, APIError>
-        where T: Deserialize
-    {
+    pub fn post_json(&self, dest: &str, body: &str, oauth_required: bool) -> Result<String, APIError> {
         self.ensure_authenticated(|| {
-            let mut response = try!(self.post(dest, oauth_required).body(body).send());
-            if response.status.is_success() {
-                let mut buf = String::new();
-                response.read_to_string(&mut buf).expect("Buffer read failed");
-                let json: T = try!(from_str(&buf));
-                Ok(json)
+            let request = self.post(dest, oauth_required).body(Body::from(body.to_string())).unwrap();
+
+            let runtime = tokio::runtime::Runtime::new().expect("Unable to create a runtime");
+
+            let response = runtime.block_on(self.client.request(request)).unwrap();
+            if response.status().is_success() {
+                let value = runtime.block_on(hyper::body::to_bytes(response.into_body()));
+                Ok(String::from_utf8(value.unwrap().to_vec()).unwrap().parse().unwrap())
             } else {
-                Err(APIError::HTTPError(response.status))
+                Err(APIError::HTTPError(response.status()))
             }
         })
     }
@@ -216,11 +232,15 @@ impl RedditClient {
                         oauth_required: bool)
                         -> Result<(), APIError> {
         self.ensure_authenticated(|| {
-            let response = try!(self.post(dest, oauth_required).body(body).send());
-            if response.status.is_success() {
+            let request = self.post(dest, oauth_required).body(Body::from(body.to_string())).unwrap();
+
+            let runtime = tokio::runtime::Runtime::new().expect("Unable to create a runtime");
+
+            let response = runtime.block_on(self.client.request(request)).unwrap();
+            if response.status().is_success() {
                 Ok(())
             } else {
-                Err(APIError::HTTPError(response.status))
+                Err(APIError::HTTPError(response.status()))
             }
         })
     }
@@ -231,9 +251,9 @@ impl RedditClient {
     /// data is safe)
     /// # Examples
     /// ```
-    /// # use rawr::client::RedditClient;
-    /// # use rawr::auth::AnonymousAuthenticator;
-    /// # let client = RedditClient::new("rawr", AnonymousAuthenticator::new());
+    /// # use new_rawr::client::RedditClient;
+    /// # use new_rawr::auth::AnonymousAuthenticator;
+    /// # let client = RedditClient::new("new_rawr", AnonymousAuthenticator::new());
     /// assert_eq!(client.url_escape(String::from("test&co")), String::from("test%26co"));
     /// assert_eq!(client.url_escape(String::from("👍")), String::from("%F0%9F%91%8D"));
     /// assert_eq!(client.url_escape(String::from("\n")), String::from("%0A"))
@@ -258,8 +278,10 @@ impl RedditClient {
     /// specified post. The **full** name of the item should be used.
     /// # Examples
     /// ```
-    /// use rawr::prelude::*;
-    /// let client = RedditClient::new("rawr", AnonymousAuthenticator::new());
+    /// use new_rawr::prelude::*;
+    /// use new_rawr::client::RedditClient;
+    /// use new_rawr::auth::AnonymousAuthenticator;
+    /// let client = RedditClient::new("new_rawr", AnonymousAuthenticator::new());
     /// let post = client.get_by_id("t3_4uule8").get().expect("Could not get post.");
     /// assert_eq!(post.title(), "[C#] Abstract vs Interface");
     /// ```
@@ -271,8 +293,11 @@ impl RedditClient {
     /// `unread`, etc.)
     /// # Examples
     /// ```rust,no_run
-    /// use rawr::prelude::*;
-    /// let client = RedditClient::new("rawr", PasswordAuthenticator::new("a", "b", "c", "d"));
+    /// use new_rawr::prelude::*;
+    /// use new_rawr::auth::PasswordAuthenticator;
+    /// use new_rawr::client::RedditClient;
+    /// use new_rawr::options::ListingOptions;
+    /// let client = RedditClient::new("new_rawr", PasswordAuthenticator::new("a", "b", "c", "d"));
     /// let messages = client.messages();
     /// for message in messages.unread(ListingOptions::default()) {
     ///

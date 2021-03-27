@@ -3,17 +3,18 @@ use std::thread;
 use std::time::Duration;
 use serde_json;
 
-use client::RedditClient;
-use errors::APIError;
-use options::ListingOptions;
-use responses::listing;
-use responses::messages::{Message as MessageData, MessageListing as _MessageListing};
-use structures::user::User;
-use structures::subreddit::Subreddit;
-use structures::comment_list::CommentList;
-use structures::comment::Comment;
-use responses::comment::NewComment;
-use traits::{Approvable, Created, Commentable, Content, Editable, PageListing};
+
+use crate::client::RedditClient;
+use crate::traits::{Created, Content, Approvable, PageListing, Editable, Commentable};
+use crate::structures::user::User;
+use crate::structures::comment::Comment;
+use crate::responses::comment::NewComment;
+use crate::structures::comment_list::CommentList;
+use crate::errors::APIError;
+use crate::structures::subreddit::Subreddit;
+use crate::options::ListingOptions;
+use crate::responses::listing;
+use crate::responses::messages::{MessageData, MessageListingData};
 
 /// A representation of a private message from Reddit.
 pub struct Message<'a> {
@@ -58,13 +59,11 @@ impl<'a> Commentable<'a> for Message<'a> {
         let body = format!("api_type=json&text={}&thing_id={}",
                            self.client.url_escape(text.to_owned()),
                            self.name());
-        self.client.post_json::<NewComment>("/api/comment", &body, false)
-           .and_then(|res| {
-               let data = res.json.data.things.into_iter().next().ok_or_else(|| {
-                   serde_json::Error::Syntax(serde_json::ErrorCode::MissingField("things[0]"), 0, 0)
-               });
-               Ok(Comment::new(self.client, try!(data).data))
-           })
+        let result = self.client.post_json("/api/comment", &body, false).unwrap();
+        let result :NewComment = serde_json::from_str(&*result).unwrap();
+        Ok(Comment::new(self.client, result.json.data.things.into_iter().next().unwrap().data))
+
+
     }
 }
 
@@ -173,8 +172,8 @@ impl<'a> MessageInterface<'a> {
     /// Composes a private message to send to a user.
     /// # Examples
     /// ```rust,no_run
-    /// use rawr::prelude::*;
-    /// let client = RedditClient::new("rawr", AnonymousAuthenticator::new());
+    /// use new_rawr::prelude::*;
+    /// let client = RedditClient::new("new_rawr", AnonymousAuthenticator::new());
     /// client.messages().compose("Aurora0001", "Test", "Hi!");
     // ```
     pub fn compose(&self, recipient: &str, subject: &str, body: &str) -> Result<(), APIError> {
@@ -186,18 +185,21 @@ impl<'a> MessageInterface<'a> {
     pub fn inbox(&self, opts: ListingOptions) -> Result<MessageListing<'a>, APIError> {
         let uri = format!("/message/inbox?raw_json=1&limit={}", opts.batch);
         let full_uri = format!("{}&{}", uri, opts.anchor);
-        self.client
-            .get_json::<_MessageListing>(&full_uri, false)
-            .and_then(|res| Ok(MessageListing::new(self.client, uri, res.data)))
+        let result = self.client
+            .get_json(&full_uri, false).unwrap();
+        let result :MessageListingData = serde_json::from_str(&*result).unwrap();
+        Ok(MessageListing::new(self.client, uri, result.data))
     }
 
     /// Gets all messages that have **not** been marked as read.
     pub fn unread(&self, opts: ListingOptions) -> Result<MessageListing<'a>, APIError> {
         let uri = format!("/message/unread?raw_json=1&limit={}", opts.batch);
         let full_uri = format!("{}&{}", uri, opts.anchor);
-        self.client
-            .get_json::<_MessageListing>(&full_uri, false)
-            .and_then(|res| Ok(MessageListing::new(self.client, uri, res.data)))
+        let result = self.client
+            .get_json(&full_uri, false).unwrap();
+        let result :MessageListingData = serde_json::from_str(&*result).unwrap();
+        Ok(MessageListing::new(self.client, uri, result.data))
+
     }
 
     /// Gets a `MessageStream` of unread posts, marking each one as read after yielding it from
@@ -205,8 +207,10 @@ impl<'a> MessageInterface<'a> {
     /// and private messages.
     /// # Examples
     /// ```rust,no_run
-    /// use rawr::prelude::*;
-    /// let client = RedditClient::new("rawr", PasswordAuthenticator::new("a", "b", "c", "d"));
+    /// use new_rawr::prelude::*;
+    /// use new_rawr::auth::PasswordAuthenticator;
+    /// use new_rawr::client::RedditClient;
+    /// let client = RedditClient::new("new_rawr", PasswordAuthenticator::new("a", "b", "c", "d"));
     /// for message in client.messages().unread_stream() {
     ///     println!("New message received.");
     /// }
@@ -260,11 +264,10 @@ impl<'a> MessageListing<'a> {
         match self.after() {
             Some(after_id) => {
                 let url = format!("{}&after={}", self.query_stem, after_id);
-                self.client
-                    .get_json::<_MessageListing>(&url, false)
-                    .and_then(|res| {
-                        Ok(MessageListing::new(self.client, self.query_stem.to_owned(), res.data))
-                    })
+                let string = self.client
+                    .get_json(&url, false).unwrap();
+                let string:MessageListingData = serde_json::from_str(&*string).unwrap();
+                Ok(MessageListing::new(self.client, self.query_stem.to_owned(), string.data))
             }
             None => Err(APIError::ExhaustedListing),
         }
@@ -331,9 +334,10 @@ impl<'a> Iterator for MessageStream<'a> {
             }
         } else {
             thread::sleep(Duration::new(5, 0));
-            let req: Result<_MessageListing, APIError> = self.client.get_json(&self.url, false);
+            let req: Result<String, APIError> = self.client.get_json(&self.url, false);
             let current_iter = if let Ok(res) = req {
-                Some(res.data
+                let req :MessageListingData = serde_json::from_str(&*res).unwrap();
+                Some(req.data
                     .children
                     .into_iter()
                     .map(|i| Message::new(self.client, i.data))

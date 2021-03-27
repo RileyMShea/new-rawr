@@ -98,7 +98,7 @@ impl LinkPost {
     /// in this subreddit before.
     /// # Examples
     /// ```
-    /// use rawr::options::LinkPost;
+    /// use new_rawr::options::LinkPost;
     /// let post = LinkPost::new("Look at this!", "http://example.com/foo").resubmit();
     /// ```
     pub fn resubmit(mut self) -> LinkPost {

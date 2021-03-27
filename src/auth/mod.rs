@@ -27,7 +27,7 @@
 //! 3. Enter a name for your bot.
 //! 4. Leave the description and about URL blank (unless you want to fill these in!)
 //! 5. Choose the correct app type. If you want to use `PasswordAuthenticator`, choose **script**.
-//! 6. Set the redirect URL to 'http://www.example.com/rawr' - this will not be used.
+//! 6. Set the redirect URL to 'http://www.example.com/new_rawr' - this will not be used.
 //! 7. Click 'create app'.
 //!
 //! You'll probably be able to see something like [this](http://bit.ly/29PR8XN) now. If so, you've
@@ -46,7 +46,7 @@
 //! correct order:
 //!
 //! ```rust,ignore
-//! # use rawr::auth::PasswordAuthenticator;
+//! # use new_rawr::auth::PasswordAuthenticator;
 //! PasswordAuthenticator::new(CLIENT_ID, CLIENT_SECRET, USERNAME, PASSWORD);
 //! ```
 
@@ -54,29 +54,36 @@
 
 use std::sync::{Arc, Mutex};
 use hyper;
-use hyper::header::{Headers, Authorization, Basic, Bearer, UserAgent};
 use std::io::Read;
 use serde_json;
-use responses::auth::TokenResponse;
-use hyper::client::Client;
-use errors::APIError;
+use hyper::{Client, Request, Body, Method};
+use hyper::HeaderMap;
+use hyper::client::HttpConnector;
+use hyper::header::{AUTHORIZATION, USER_AGENT, CONTENT_TYPE, HeaderName};
+use futures::{AsyncReadExt, SinkExt};
+use crate::errors::APIError;
+use crate::responses::auth::TokenResponseData;
+use hyper::http::request::Builder;
+use std::iter::Map;
+use std::collections::HashMap;
+use hyper_tls::HttpsConnector;
 
 /// Trait for any method of authenticating with the Reddit API.
 pub trait Authenticator {
     /// Logs in and fetches relevant tokens.
-    fn login(&mut self, client: &Client, user_agent: &str) -> Result<(), APIError>;
+    fn login(&mut self, client: &Client<HttpsConnector<HttpConnector>>, user_agent: &str) -> Result<(), APIError>;
     /// Called if a token expiration error occurs.
-    fn refresh_token(&mut self, client: &Client, user_agent: &str) -> Result<(), APIError> {
+    fn refresh_token(&mut self, client: &Client<HttpsConnector<HttpConnector>>, user_agent: &str) -> Result<(), APIError> {
         self.login(client, user_agent)
     }
     /// Logs out and invalidates tokens if applicable.
-    fn logout(&mut self, client: &Client, user_agent: &str) -> Result<(), APIError>;
+    fn logout(&mut self, client: &Client<HttpsConnector<HttpConnector>>, user_agent: &str) -> Result<(), APIError>;
     /// A list of OAuth scopes that this `Authenticator` can access. Currently, the result of this
     /// is not used, but the correct scopes should be returned. If all scopes can be accessed,
     /// this is signified by a vec!["*"]. If it is read-only, the result is vec!["read"].
     fn scopes(&self) -> Vec<String>;
     /// Returns the headers needed to authenticate. Must be done **after** `login()`.
-    fn headers(&self) -> Headers;
+    fn headers(&self)-> HashMap<HeaderName, String>;
     /// `true` if this authentication method requires the OAuth API.
     fn oauth(&self) -> bool;
 }
@@ -86,13 +93,13 @@ pub struct AnonymousAuthenticator;
 
 impl Authenticator for AnonymousAuthenticator {
     #[allow(unused_variables)]
-    fn login(&mut self, client: &Client, user_agent: &str) -> Result<(), APIError> {
+    fn login(&mut self, client: &Client<HttpsConnector<HttpConnector>>, user_agent: &str) -> Result<(), APIError> {
         // Don't log in, because we're anonymous!
         Ok(())
     }
 
     #[allow(unused_variables)]
-    fn logout(&mut self, client: &Client, user_agent: &str) -> Result<(), APIError> {
+    fn logout(&mut self, client: &Client<HttpsConnector<HttpConnector>>, user_agent: &str) -> Result<(), APIError> {
         // Can't log out if we're not logged in.
         Ok(())
     }
@@ -101,8 +108,8 @@ impl Authenticator for AnonymousAuthenticator {
         vec![String::from("read")]
     }
 
-    fn headers(&self) -> Headers {
-        Headers::new()
+    fn headers(&self)->  HashMap<HeaderName, String>{
+        HashMap::new()
     }
 
     fn oauth(&self) -> bool {
@@ -115,7 +122,7 @@ impl AnonymousAuthenticator {
     /// of `AnonymousAuthenticator`.
     /// # Examples
     /// ```
-    /// use rawr::auth::AnonymousAuthenticator;
+    /// use new_rawr::auth::AnonymousAuthenticator;
     /// AnonymousAuthenticator::new();
     /// ```
     pub fn new() -> Arc<Mutex<Box<Authenticator + Send>>> {
@@ -134,45 +141,48 @@ pub struct PasswordAuthenticator {
 }
 
 impl Authenticator for PasswordAuthenticator {
-    fn login(&mut self, client: &Client, user_agent: &str) -> Result<(), APIError> {
+    fn login(&mut self, client: &Client<HttpsConnector<HttpConnector>>, user_agent: &str) -> Result<(), APIError> {
         let url = "https://www.reddit.com/api/v1/access_token";
         let body = format!("grant_type=password&username={}&password={}",
                            &self.username,
                            &self.password);
-        let access_req = client.post(url)
-            .header(Authorization(Basic {
-                username: self.client_id.to_owned(),
-                password: Some(self.client_secret.to_owned()),
-            }))
-            .header(UserAgent(user_agent.to_owned()))
-            .body(&body);
+        let request = Request::builder().method(Method::POST).uri(url)
+            .header(AUTHORIZATION, format!("Basic {}", base64::encode(format!("{}:{}", self.client_id.to_owned(), self.client_secret.to_owned()))))
+            .header(CONTENT_TYPE, "application/x-www-form-urlencoded")
+            .header(USER_AGENT, user_agent)
+            .body(Body::from(body)).unwrap();
 
-        let mut result = access_req.send().unwrap();
-
-        if result.status != hyper::Ok {
-            Err(APIError::HTTPError(result.status))
+        let runtime = tokio::runtime::Runtime::new().expect("Unable to create a runtime");
+        let mut result = runtime.block_on(client.request(request)).unwrap();
+        if result.status() != hyper::StatusCode::OK {
+            Err(APIError::HTTPError(result.status()))
         } else {
-            let mut buf = String::new();
-            result.read_to_string(&mut buf).unwrap();
-            let token_response: TokenResponse = serde_json::from_str(&buf).unwrap();
+            let value = runtime.block_on(hyper::body::to_bytes(result.into_body()));
+
+            let value = String::from_utf8(value.unwrap().to_vec());
+            ;
+            let token_response: TokenResponseData = serde_json::from_str(&*value.unwrap()).unwrap();
             self.access_token = Some(token_response.access_token);
             Ok(())
         }
     }
 
-    fn logout(&mut self, client: &Client, user_agent: &str) -> Result<(), APIError> {
+    fn logout(&mut self, client: &Client<HttpsConnector<HttpConnector>>, user_agent: &str) -> Result<(), APIError> {
         let url = "https://www.reddit.com/api/v1/revoke_token";
         let body = format!("token={}", &self.access_token.to_owned().unwrap());
-        let req = client.post(url)
-            .header(Authorization(Basic {
-                username: self.client_id.to_owned(),
-                password: Some(self.client_secret.to_owned()),
-            }))
-            .header(UserAgent(user_agent.to_owned()))
-            .body(&body);
-        let res = req.send().unwrap();
-        if !res.status.is_success() {
-            Err(APIError::HTTPError(res.status))
+        let request = Request::builder().method(Method::POST).uri(url)
+            .header(AUTHORIZATION, format!("Basic {}", base64::encode(format!("{}:{}", self.client_id.to_owned(), self.client_secret.to_owned()))))
+            .header(CONTENT_TYPE, "application/x-www-form-urlencoded")
+            .header(USER_AGENT, user_agent)
+            .body(Body::from(body));
+
+
+        let runtime = tokio::runtime::Runtime::new().expect("Unable to create a runtime");
+
+        let res = runtime.block_on(client.request(request.unwrap())).unwrap();
+
+        if !res.status().is_success() {
+            Err(APIError::HTTPError(res.status()))
         } else {
             Ok(())
         }
@@ -182,12 +192,10 @@ impl Authenticator for PasswordAuthenticator {
         vec![String::from("*")]
     }
 
-    fn headers(&self) -> Headers {
-        let mut headers = Headers::new();
-        if let Some(ref token) = self.access_token {
-            headers.set(Authorization(Bearer { token: token.to_owned() }));
-        }
-        headers
+    fn headers(&self) -> HashMap<HeaderName, String> {
+        let mut map = HashMap::new();
+        map.insert(AUTHORIZATION, format!("Bearer {}", self.access_token.to_owned().unwrap()));
+        map
     }
 
     fn oauth(&self) -> bool {

@@ -4,26 +4,27 @@ use std::thread;
 use std::time::Duration;
 
 use std::collections::HashMap;
-use client::RedditClient;
-use structures::comment::Comment;
-use responses::BasicThing;
-use responses::listing;
-use responses::comment::{Comment as _Comment, More};
+use crate::client::RedditClient;
+use crate::structures::comment::Comment;
+use crate::responses::BasicThing;
+use crate::responses::listing;
+use crate::responses::comment::{CommentData, MoreData};
 use serde_json::{Value, from_value, from_str};
 use std::io::Read;
-use errors::APIError;
-use traits::Content;
+use crate::errors::APIError;
+use crate::traits::Content;
+use hyper::Body;
 
 /// A list of comments that can be iterated through. Automatically fetches 'more' links when
 /// necessary until all comments have been consumed, which can lead to pauses while loading
 /// from the API.
 /// # Examples
 /// ```
-/// use rawr::client::RedditClient;
-/// use rawr::options::ListingOptions;
-/// use rawr::traits::Commentable;
-/// use rawr::auth::AnonymousAuthenticator;
-/// let client = RedditClient::new("rawr", AnonymousAuthenticator::new());
+/// use new_rawr::client::RedditClient;
+/// use new_rawr::options::ListingOptions;
+/// use new_rawr::traits::Commentable;
+/// use new_rawr::auth::AnonymousAuthenticator;
+/// let client = RedditClient::new("new_rawr", AnonymousAuthenticator::new());
 /// let announcements = client.subreddit("announcements");
 /// let announcement = announcements.hot(ListingOptions::default())
 ///     .expect("Could not fetch announcements")
@@ -36,7 +37,7 @@ pub struct CommentList<'a> {
     client: &'a RedditClient,
     comments: Vec<Comment<'a>>,
     comment_hashes: HashMap<String, usize>,
-    more: Vec<More>,
+    more: Vec<MoreData>,
     link_id: String,
     parent: String,
 }
@@ -55,12 +56,12 @@ impl<'a> CommentList<'a> {
         let mut hashes = HashMap::new();
         for item in comment_list {
             if item.kind == "t1" {
-                let item = from_value::<_Comment>(item.data).unwrap();
+                let item = from_value::<CommentData>(item.data).unwrap();
                 let comment = Comment::new(client, item);
                 hashes.insert(comment.name().to_owned(), new_items.len());
                 new_items.push(comment);
             } else if item.kind == "more" {
-                let item = from_value::<More>(item.data).unwrap();
+                let item = from_value::<MoreData>(item.data).unwrap();
                 new_mores.push(item);
             } else {
                 unreachable!();
@@ -83,8 +84,8 @@ impl<'a> CommentList<'a> {
             client: client,
             link_id: String::new(),
             parent: String::new(),
-            comments: vec![],
-            more: vec![],
+            comments: Vec::new(),
+            more: Vec::new(),
             comment_hashes: HashMap::new(),
         }
     }
@@ -96,20 +97,25 @@ impl<'a> CommentList<'a> {
         self.comments.push(item);
     }
 
-    fn fetch_more(&mut self, more_item: More) -> CommentList<'a> {
+    fn fetch_more(&mut self, more_item: MoreData) -> CommentList<'a> {
         let params = format!("api_type=json&raw_json=1&link_id={}&children={}",
                              &self.link_id,
                              &more_item.children.join(","));
         let url = "/api/morechildren";
         self.client
             .ensure_authenticated(|| {
-                let mut res = try!(self.client.post(url, false).body(&params).send());
-                if res.status.is_success() {
+                let request = self.client.post(url, false).body(Body::from(params.clone())).unwrap();
+
+                let runtime = tokio::runtime::Runtime::new().expect("Unable to create a runtime");
+
+                let res = runtime.block_on(self.client.client.request(request)).unwrap();
+                if res.status().is_success() {
                     // The "data" attribute is sometimes not present, so we have to unwrap it all
                     // manually
-                    let mut result_str = String::new();
-                    res.read_to_string(&mut result_str).unwrap();
-                    let mut new_listing: Value = from_str(&result_str).unwrap();
+                    let value = runtime.block_on(hyper::body::to_bytes(res.into_body()));
+
+                    let value =String::from_utf8(value.unwrap().to_vec());;
+                    let mut new_listing: Value = from_str(value.unwrap().as_str()).unwrap();
                     let mut new_listing = new_listing.as_object_mut().unwrap();
                     let mut json = new_listing.remove("json").unwrap();
                     let mut json = json.as_object_mut().unwrap();
@@ -129,7 +135,7 @@ impl<'a> CommentList<'a> {
                                             vec![]))
                     }
                 } else {
-                    Err(APIError::HTTPError(res.status))
+                    Err(APIError::HTTPError(res.status()))
                 }
             })
             .unwrap()
@@ -257,8 +263,10 @@ impl<'a> Iterator for CommentStream<'a> {
         } else {
             thread::sleep(Duration::new(5, 0));
             let url = format!("/comments/{}?sort=new&raw_json=1", self.id);
-            let req: Result<listing::CommentResponse, APIError> = self.client.get_json(&url, false);
-            if let Ok(req) = req {
+            let value = self.client.get_json(&url, false);
+            if let Ok(value) = value {
+                let req: listing::CommentResponse= serde_json::from_str(&*value).unwrap();
+
                 let current_iter = CommentList::new(self.client,
                                                     self.link_name.to_owned(),
                                                     self.link_name.to_owned(),
