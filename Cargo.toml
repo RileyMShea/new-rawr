@@ -24,3 +24,6 @@ hyper-tls = "0.5.0"
 tokio = { version = "1", features = ["full"] }
 futures = "0.3.13"
 base64 = "0.13.0"
+[dev-dependencies]
+dotenv = "0.15.0"
+dotenv_codegen = "0.15.0"

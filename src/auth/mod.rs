@@ -125,7 +125,7 @@ impl AnonymousAuthenticator {
     /// use new_rawr::auth::AnonymousAuthenticator;
     /// AnonymousAuthenticator::new();
     /// ```
-    pub fn new() -> Arc<Mutex<Box<Authenticator + Send>>> {
+    pub fn new() -> Arc<Mutex<Box<dyn Authenticator + Send>>> {
         Arc::new(Mutex::new(Box::new(AnonymousAuthenticator {})))
     }
 }
@@ -133,11 +133,11 @@ impl AnonymousAuthenticator {
 /// Authenticates using a username and password with OAuth. See the module-level documentation for
 /// usage.
 pub struct PasswordAuthenticator {
-    access_token: Option<String>,
-    client_id: String,
-    client_secret: String,
-    username: String,
-    password: String,
+    pub access_token: Option<String>,
+    pub client_id: String,
+    pub client_secret: String,
+    pub username: String,
+    pub password: String,
 }
 
 impl Authenticator for PasswordAuthenticator {
@@ -207,11 +207,7 @@ impl PasswordAuthenticator {
     /// Creates a new `PasswordAuthenticator`. If you do not have a client ID and secret (or do
     /// not know what these are), you need to fetch one using the instructions in the module
     /// documentation.
-    pub fn new(client_id: &str,
-               client_secret: &str,
-               username: &str,
-               password: &str)
-               -> Arc<Mutex<Box<Authenticator + Send>>> {
+    pub fn new(client_id: &str, client_secret: &str, username: &str, password: &str) -> Arc<Mutex<Box<dyn Authenticator + Send>>> {
         Arc::new(Mutex::new(Box::new(PasswordAuthenticator {
             client_id: client_id.to_owned(),
             client_secret: client_secret.to_owned(),

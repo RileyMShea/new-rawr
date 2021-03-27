@@ -216,16 +216,22 @@ pub mod errors;
 pub mod structures;
 /// Configuration options for API requests.
 pub mod options;
-/// Basic `new_rawr` structures to import with `use new_rawr::prelude::*`;
 
+/// Basic `new_rawr` structures to import with `use new_rawr::prelude::*`;
 #[cfg(test)]
 mod tests {
     use hyper::Client;
-    use crate::auth::AnonymousAuthenticator;
+    use crate::auth::{AnonymousAuthenticator, PasswordAuthenticator};
     use crate::client::RedditClient;
     use crate::options::ListingOptions;
     use crate::responses::listing::SubmissionData;
     use crate::structures::submission::Submission;
+
+    extern crate dotenv;
+
+
+    use dotenv::dotenv;
+    use std::env;
 
     #[test]
     fn hot_length() {
@@ -234,5 +240,23 @@ mod tests {
         let hot = r_all.hot(ListingOptions::default()).expect("Request failed!");
         let hot_list = hot.take(26).collect::<Vec<Submission>>();
         assert_eq!(hot_list.len() as usize, 26);
+    }
+
+    #[test]
+    fn test_invite() {
+        dotenv().ok();
+        let arc = PasswordAuthenticator::new(
+            dotenv::var("CLIENT_KEY").unwrap().as_str(),
+            dotenv::var("CLIENT_SECRET").unwrap().as_str(),
+            dotenv::var("USERNAME").unwrap().as_str(),
+            dotenv::var("PASSWORD").unwrap().as_str());
+        let client = RedditClient::new("new_rawr", arc);
+        println!("Hey2");
+        let subreddit = client.subreddit("new_rawr");
+        println!("Hey3");
+        let result = subreddit.add_friend("LordPenguin42".parse().unwrap());
+        if result.is_err() {
+            println!("{}", result.err().unwrap());
+        }
     }
 }

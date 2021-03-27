@@ -57,7 +57,7 @@ pub struct RedditClient {
     /// issue saying why the API does not support your use-case, and we'll try to add it.
     pub client: Client<HttpsConnector<HttpConnector>>,
     user_agent: String,
-    authenticator: Arc<Mutex<Box<Authenticator + Send>>>,
+    authenticator: Arc<Mutex<Box<dyn Authenticator + Send>>>,
     auto_logout: bool,
 }
 
@@ -65,7 +65,7 @@ pub struct RedditClient {
 impl RedditClient {
     /// Creates an instance of the `RedditClient` using the provided user agent.
     pub fn new(user_agent: &str,
-               authenticator: Arc<Mutex<Box<Authenticator + Send>>>)
+               authenticator: Arc<Mutex<Box<dyn Authenticator + Send>>>)
                -> RedditClient {
         // Connection pooling is problematic if there are pauses/sleeps in the program, so we
         // choose to disable it by using a non-pooling connector.

@@ -1,4 +1,5 @@
 #![allow(unknown_lints, wrong_self_convention, new_ret_no_self)]
+
 use crate::client::RedditClient;
 use crate::options::{ListingOptions, TimeFilter, LinkPost, SelfPost};
 use crate::structures::listing::Listing;
@@ -29,8 +30,8 @@ impl<'a> Subreddit<'a> {
         let full_uri = format!("{}&{}", uri, opts.anchor);
         let string = self.client
             .get_json(&full_uri, false).unwrap();
-        println!("{}",&string);
-        let string: listing::Listing =serde_json::from_str(&*string).unwrap();
+        println!("{}", &string);
+        let string: listing::Listing = serde_json::from_str(&*string).unwrap();
         Ok(Listing::new(self.client, uri, string.data))
     }
 
@@ -185,6 +186,12 @@ impl<'a> Subreddit<'a> {
                            self.client.url_escape(post.text));
         self.client.post_success("/api/submit", &body, false)
     }
+    pub fn add_friend(&self, username: String) -> Result<(), APIError> {
+        let path = format!("/r/{}/api/friend", self.name);
+        let body = format!("name={}&type=friend", username);
+        let result = self.client.post_success(&*path, &body, false);
+        result
+    }
 
     /// Fetches information about a subreddit such as subscribers, active users and sidebar
     /// information.
@@ -202,7 +209,7 @@ impl<'a> Subreddit<'a> {
 
         let string = self.client
             .get_json(&url, false).unwrap();
-        let string: listing::SubredditAboutData =serde_json::from_str(&*string).unwrap();
+        let string: listing::SubredditAboutData = serde_json::from_str(&*string).unwrap();
         Ok(SubredditAbout::new(string))
     }
 
