@@ -133,11 +133,11 @@ impl AnonymousAuthenticator {
 /// Authenticates using a username and password with OAuth. See the module-level documentation for
 /// usage.
 pub struct PasswordAuthenticator {
-    pub access_token: Option<String>,
-    pub client_id: String,
-    pub client_secret: String,
-    pub username: String,
-    pub password: String,
+     access_token: Option<String>,
+     client_id: String,
+     client_secret: String,
+     username: String,
+     password: String,
 }
 
 impl Authenticator for PasswordAuthenticator {

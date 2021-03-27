@@ -258,7 +258,7 @@ mod tests {
         println!("Hey2");
         let subreddit = client.subreddit("new_rawr");
         println!("Hey3");
-        let result = subreddit.add_friend("LordPenguin42".parse().unwrap());
+        let result = subreddit.invite_member("LordPenguin42".parse().unwrap());
         if result.is_err() {
             println!("{}", result.err().unwrap());
         }

@@ -186,12 +186,13 @@ impl<'a> Subreddit<'a> {
                            self.client.url_escape(post.text));
         self.client.post_success("/api/submit", &body, false)
     }
-    pub fn add_friend(&self, username: String) -> Result<(), APIError> {
+    /// Invites a new member to the subreddit.
+    pub fn invite_member(&self, username: String) -> Result<(), APIError> {
         let path = format!("/r/{}/api/friend", self.name);
         let body = format!("name={}&type=contributor", username);
         let result = self.client.post_json(&*path, &body, false);
-        if result.is_err(){
-            return Err(result.err().unwrap())
+        if result.is_err() {
+            return Err(result.err().unwrap());
         }
         Ok(())
     }
