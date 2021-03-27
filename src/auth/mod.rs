@@ -83,7 +83,7 @@ pub trait Authenticator {
     /// this is signified by a vec!["*"]. If it is read-only, the result is vec!["read"].
     fn scopes(&self) -> Vec<String>;
     /// Returns the headers needed to authenticate. Must be done **after** `login()`.
-    fn headers(&self)-> HashMap<HeaderName, String>;
+    fn headers(&self) -> HashMap<HeaderName, String>;
     /// `true` if this authentication method requires the OAuth API.
     fn oauth(&self) -> bool;
 }
@@ -108,7 +108,7 @@ impl Authenticator for AnonymousAuthenticator {
         vec![String::from("read")]
     }
 
-    fn headers(&self)->  HashMap<HeaderName, String>{
+    fn headers(&self) -> HashMap<HeaderName, String> {
         HashMap::new()
     }
 
@@ -146,22 +146,32 @@ impl Authenticator for PasswordAuthenticator {
         let body = format!("grant_type=password&username={}&password={}",
                            &self.username,
                            &self.password);
+        println!("{}", &body);
         let request = Request::builder().method(Method::POST).uri(url)
             .header(AUTHORIZATION, format!("Basic {}", base64::encode(format!("{}:{}", self.client_id.to_owned(), self.client_secret.to_owned()))))
             .header(CONTENT_TYPE, "application/x-www-form-urlencoded")
             .header(USER_AGENT, user_agent)
-            .body(Body::from(body)).unwrap();
+            .body(Body::from(body));
+        if request.is_err() {
+            return Err(APIError::ExhaustedListing);
+        }
+        let request = request.unwrap();
 
         let runtime = tokio::runtime::Runtime::new().expect("Unable to create a runtime");
-        let mut result = runtime.block_on(client.request(request)).unwrap();
+        let mut result = runtime.block_on(client.request(request));
+        if result.is_err() {
+            return Err(APIError::ExhaustedListing);
+        }
+        let result = result.unwrap();
         if result.status() != hyper::StatusCode::OK {
             Err(APIError::HTTPError(result.status()))
         } else {
             let value = runtime.block_on(hyper::body::to_bytes(result.into_body()));
 
             let value = String::from_utf8(value.unwrap().to_vec());
-            ;
-            let token_response: TokenResponseData = serde_json::from_str(&*value.unwrap()).unwrap();
+            let string = value.unwrap();
+            println!("{}", &string);
+            let token_response: TokenResponseData = serde_json::from_str(&string).unwrap();
             self.access_token = Some(token_response.access_token);
             Ok(())
         }

@@ -244,13 +244,17 @@ mod tests {
 
     #[test]
     fn test_invite() {
+        println!("1");
         dotenv().ok();
+        println!("1");
         let arc = PasswordAuthenticator::new(
             dotenv::var("CLIENT_KEY").unwrap().as_str(),
             dotenv::var("CLIENT_SECRET").unwrap().as_str(),
-            dotenv::var("USERNAME").unwrap().as_str(),
+            dotenv::var("USER").unwrap().as_str(),
             dotenv::var("PASSWORD").unwrap().as_str());
         let client = RedditClient::new("new_rawr", arc);
+
+        println!("1");
         println!("Hey2");
         let subreddit = client.subreddit("new_rawr");
         println!("Hey3");

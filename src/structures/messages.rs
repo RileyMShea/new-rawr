@@ -84,11 +84,11 @@ impl<'a> Content for Message<'a> {
     }
 
     fn author_flair_text(&self) -> Option<String> {
-        panic!("The author flair text cannot be retrieved from messages.");
+        None
     }
 
     fn author_flair_css(&self) -> Option<String> {
-        panic!("The author flair CSS cannot be retrieved from messages.");
+        None
     }
 
     fn subreddit(&self) -> Subreddit {

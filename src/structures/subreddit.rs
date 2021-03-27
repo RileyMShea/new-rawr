@@ -188,9 +188,12 @@ impl<'a> Subreddit<'a> {
     }
     pub fn add_friend(&self, username: String) -> Result<(), APIError> {
         let path = format!("/r/{}/api/friend", self.name);
-        let body = format!("name={}&type=friend", username);
-        let result = self.client.post_success(&*path, &body, false);
-        result
+        let body = format!("name={}&type=contributor", username);
+        let result = self.client.post_json(&*path, &body, false);
+        if result.is_err(){
+            return Err(result.err().unwrap())
+        }
+        Ok(())
     }
 
     /// Fetches information about a subreddit such as subscribers, active users and sidebar

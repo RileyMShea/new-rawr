@@ -50,6 +50,7 @@ use crate::structures::messages::MessageInterface;
 use hyper::http::request::Builder;
 use std::borrow::Borrow;
 use hyper_tls::HttpsConnector;
+use std::panic::resume_unwind;
 
 /// A client to connect to Reddit. See the module-level documentation for examples.
 pub struct RedditClient {
@@ -199,6 +200,7 @@ impl RedditClient {
     pub fn post(&self, dest: &str, oauth_required: bool) -> Builder {
         let mut authenticator = self.get_authenticator();
         let url = self.build_url(dest, oauth_required, &mut authenticator);
+        println!("{}", &url);
         let mut builder = Request::builder().method(Method::POST).uri(url);
         for x in authenticator.headers() {
             builder = builder.header(x.0, x.1);
@@ -215,11 +217,13 @@ impl RedditClient {
             let runtime = tokio::runtime::Runtime::new().expect("Unable to create a runtime");
 
             let response = runtime.block_on(self.client.request(request)).unwrap();
-            if response.status().is_success() {
+            let status = response.status();
+            if status.is_success() {
                 let value = runtime.block_on(hyper::body::to_bytes(response.into_body()));
                 Ok(String::from_utf8(value.unwrap().to_vec()).unwrap().parse().unwrap())
             } else {
-                Err(APIError::HTTPError(response.status()))
+
+                Err(APIError::HTTPError(status))
             }
         })
     }
@@ -311,7 +315,10 @@ impl RedditClient {
 impl Drop for RedditClient {
     fn drop(&mut self) {
         if self.auto_logout {
-            self.get_authenticator().logout(&self.client, &self.user_agent).unwrap();
+            let result = self.get_authenticator().logout(&self.client, &self.user_agent);
+            if result.is_err() {
+                println!("{}", result.err().unwrap());
+            }
         }
     }
 }
