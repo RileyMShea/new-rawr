@@ -228,11 +228,11 @@ pub struct SubredditAbout {
 
 impl Created for SubredditAbout {
     fn created(&self) -> i64 {
-        self.data.created
+        self.data.created as i64
     }
 
     fn created_utc(&self) -> i64 {
-        self.data.created_utc
+        self.data.created_utc as i64
     }
 }
 

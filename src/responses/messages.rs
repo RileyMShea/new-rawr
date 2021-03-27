@@ -21,6 +21,6 @@ pub struct MessageData {
     pub subject: String,
     pub subreddit: Option<String>,
     pub was_comment: bool,
-    pub created: i64,
-    pub created_utc: i64
+    pub created: f64,
+    pub created_utc: f64
 }

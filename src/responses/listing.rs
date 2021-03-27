@@ -30,8 +30,8 @@ pub struct SubredditAboutData {
     pub display_name: String,
     pub description: String,
     pub description_html: String,
-    pub created: i64,
-    pub created_utc: i64,
+    pub created: f64,
+    pub created_utc: f64,
     pub quarantine: bool,
     pub submission_type: String,
     pub lang: String,
@@ -164,7 +164,7 @@ pub struct SubmissionData {
     pub name: String,
     /// A timestamp of the time when the post was created, in the logged-in user's **local**
     /// time.
-    pub created: i64,
+    pub created: f64,
     /// The linked URL, if this is a link post.
     pub url: Option<String>,
     /// The text of the author's flair, if present. Can be an empty string if the flair is present
@@ -175,7 +175,7 @@ pub struct SubmissionData {
     /// The title of the post.
     pub title: String,
     /// A timestamp of the time when the post was created, in **UTC**.
-    pub created_utc: i64,
+    pub created_utc: f64,
     /// Indicates whether the user has used a special flag for themselves, e.g. [M] or [A].
     /// Possible values:
     /// - None - Normal user

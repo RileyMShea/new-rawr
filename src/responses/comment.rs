@@ -85,12 +85,12 @@ pub struct CommentData {
     pub stickied: bool,
     /// A timestamp of the time when the post was created, in the logged-in user's **local**
     /// time.
-    pub created: i64,
+    pub created: f64,
     /// The text of the author's flair, if present. Can be an empty string if the flair is present
     /// but contains no text.
     pub author_flair_text: Option<String>,
     /// A timestamp of the time when the post was created, in **UTC**.
-    pub created_utc: i64,
+    pub created_utc: f64,
     /// Indicates whether the user has used a special flag for themselves, e.g. [M] or [A].
     /// Possible values:
     /// - None - Normal user
