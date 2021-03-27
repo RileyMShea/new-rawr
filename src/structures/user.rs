@@ -84,6 +84,7 @@ impl<'a> User<'a> {
         Ok(Listing::new(self.client, url, result.data))
     }
     // TODO: implement comment, overview, gilded listings etc.
+
 }
 
 /// Information about a user from /r/username/about, such as karma and ID.

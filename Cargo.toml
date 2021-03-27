@@ -1,9 +1,8 @@
 [package]
 name = "new-rawr"
 version = "0.0.1"
-authors = ["Aurora0001 <aurora01@safe-mail.net>","Wyatt Jacob Herkamp <wherkamp@kingtux.me>"]
+authors = ["Wyatt Jacob Herkamp <wherkamp@kingtux.me>","Aurora0001 <aurora01@safe-mail.net>"]
 license = "MIT"
-documentation = "https://aurora0001.github.io/rawr/doc/rawr/index.html"
 repository = "https://github.com/wherkamp/new-rawr"
 description = "An updated Rust API Wrapper for Reddit"
 edition = "2018"
