@@ -1,6 +1,6 @@
 [package]
 name = "new-rawr"
-version = "0.2.0"
+version = "0.0.1"
 authors = ["Aurora0001 <aurora01@safe-mail.net>","Wyatt Jacob Herkamp <wherkamp@kingtux.me>"]
 license = "MIT"
 documentation = "https://aurora0001.github.io/rawr/doc/rawr/index.html"
