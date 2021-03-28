@@ -67,6 +67,8 @@ use hyper::http::request::Builder;
 use std::iter::Map;
 use std::collections::HashMap;
 use hyper_tls::HttpsConnector;
+use std::time::{SystemTime, UNIX_EPOCH};
+use futures::future::ok;
 
 /// Trait for any method of authenticating with the Reddit API.
 pub trait Authenticator {
@@ -83,7 +85,7 @@ pub trait Authenticator {
     /// this is signified by a vec!["*"]. If it is read-only, the result is vec!["read"].
     fn scopes(&self) -> Vec<String>;
     /// Returns the headers needed to authenticate. Must be done **after** `login()`.
-    fn headers(&self) -> HashMap<HeaderName, String>;
+    fn headers(&self) -> Result<HashMap<HeaderName, String>, APIError>;
     /// `true` if this authentication method requires the OAuth API.
     fn oauth(&self) -> bool;
 }
@@ -108,8 +110,8 @@ impl Authenticator for AnonymousAuthenticator {
         vec![String::from("read")]
     }
 
-    fn headers(&self) -> HashMap<HeaderName, String> {
-        HashMap::new()
+    fn headers(&self) -> Result<HashMap<HeaderName, String>, APIError> {
+        Ok(HashMap::new())
     }
 
     fn oauth(&self) -> bool {
@@ -133,11 +135,12 @@ impl AnonymousAuthenticator {
 /// Authenticates using a username and password with OAuth. See the module-level documentation for
 /// usage.
 pub struct PasswordAuthenticator {
-     access_token: Option<String>,
-     client_id: String,
-     client_secret: String,
-     username: String,
-     password: String,
+    access_token: Option<String>,
+    client_id: String,
+    client_secret: String,
+    username: String,
+    password: String,
+    expire_time: Option<u128>,
 }
 
 impl Authenticator for PasswordAuthenticator {
@@ -169,9 +172,16 @@ impl Authenticator for PasswordAuthenticator {
 
             let value = String::from_utf8(value.unwrap().to_vec());
             let string = value.unwrap();
-            let token_response: TokenResponseData = serde_json::from_str(&string).unwrap();
-            self.access_token = Some(token_response.access_token);
-            Ok(())
+            let result1 = serde_json::from_str(&string);
+            if result1.is_ok() {
+                let token_response: TokenResponseData = result1.unwrap();
+                self.access_token = Some(token_response.access_token);
+                let x = (token_response.expires_in * 1000);
+                let x1 = (x as u128) + SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_millis();
+                self.expire_time = Some(x1);
+                return Ok(());
+            }
+            return Err(APIError::ExhaustedListing);
         }
     }
 
@@ -200,10 +210,14 @@ impl Authenticator for PasswordAuthenticator {
         vec![String::from("*")]
     }
 
-    fn headers(&self) -> HashMap<HeaderName, String> {
+    fn headers(&self) -> Result<HashMap<HeaderName, String>, APIError> {
+        let i = SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_millis();
+        if i >= self.expire_time.unwrap() {
+            return Err(APIError::ExpiredToken);
+        }
         let mut map = HashMap::new();
         map.insert(AUTHORIZATION, format!("Bearer {}", self.access_token.to_owned().unwrap()));
-        map
+        Ok(map)
     }
 
     fn oauth(&self) -> bool {
@@ -221,6 +235,7 @@ impl PasswordAuthenticator {
             client_secret: client_secret.to_owned(),
             username: username.to_owned(),
             password: password.to_owned(),
+            expire_time: None,
             access_token: None,
         })))
     }

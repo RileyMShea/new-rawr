@@ -51,6 +51,7 @@ use hyper::http::request::Builder;
 use std::borrow::Borrow;
 use hyper_tls::HttpsConnector;
 use std::panic::resume_unwind;
+use std::error::Error;
 
 /// A client to connect to Reddit. See the module-level documentation for examples.
 pub struct RedditClient {
@@ -163,8 +164,14 @@ impl RedditClient {
         let url = self.build_url(dest, oauth_required, &mut authenticator);
 
         let mut builder = (Builder::new());
-
-        for x in authenticator.headers() {
+        let mut headers = authenticator.headers();
+        if headers.is_err() {
+            if headers.err().unwrap().to_string().eq("ExpiredToken") {
+                authenticator.login(&self.client, &*self.user_agent);
+            }
+        }
+        headers = authenticator.headers();
+        for x in headers.unwrap() {
             builder = builder.header(x.0, x.1);
         }
         builder.method(Method::GET).uri(url).header(USER_AGENT, self.user_agent.to_owned())
@@ -195,9 +202,16 @@ impl RedditClient {
         let mut authenticator = self.get_authenticator();
         let url = self.build_url(dest, oauth_required, &mut authenticator);
         let mut builder = Request::builder().method(Method::POST).uri(url);
-        for x in authenticator.headers() {
+        let mut headers = authenticator.headers();
+        if headers.is_err() {
+            if headers.err().unwrap().to_string().eq("ExpiredToken") {
+                authenticator.login(&self.client, &*self.user_agent);
+            }
+        }
+        headers = authenticator.headers();
+        for x in headers.unwrap() {
             builder = builder.header(x.0, x.1);
-        };
+        }
         builder.header(USER_AGENT, self.user_agent.to_owned())
     }
 
@@ -215,7 +229,6 @@ impl RedditClient {
                 let value = runtime.block_on(hyper::body::to_bytes(response.into_body()));
                 Ok(String::from_utf8(value.unwrap().to_vec()).unwrap().parse().unwrap())
             } else {
-
                 Err(APIError::HTTPError(status))
             }
         })

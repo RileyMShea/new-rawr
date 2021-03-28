@@ -19,11 +19,13 @@ pub enum APIError {
     /// Occurs if JSON deserialization fails. This will always be a bug, so please report it
     /// if it does occur, but the error type is provided so you can fail gracefully.
     JSONError(serde_json::Error),
+
+    ExpiredToken,
 }
 
 impl Display for APIError {
     fn fmt(&self, f: &mut Formatter) -> FmtResult {
-        write!(f, "Error! {}. ({:?})", self.description(), self)
+        write!(f, "Error! {}. ({:?})", self, self)
     }
 }
 
@@ -34,6 +36,9 @@ impl Error for APIError {
             APIError::HyperError(_) => "An error occurred while processing the HTTP response",
             APIError::JSONError(_) => {
                 "The JSON sent by Reddit did not match what new_rawr was expecting"
+            }
+            APIError::ExpiredToken=>{
+                "ExpiredToken"
             }
             _ => "This error should not have occurred. Please file a bug",
         }
