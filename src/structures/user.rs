@@ -88,7 +88,7 @@ impl<'a> User<'a> {
         Ok(Listing::new(self.client, url, result.data))
     }
     // TODO: implement comment, overview, gilded listings etc.
-    //Incomplete get comments
+    ///Incomplete get comments
     pub fn comments(&self) -> Result<CommentListing, APIError> {
         let url = format!("/user/{}/comments?raw_json=1", self.name);
         let result = self.client
@@ -101,6 +101,7 @@ impl<'a> User<'a> {
 
 /// Information about a user from /r/username/about, such as karma and ID.
 pub struct UserAbout {
+    ///About data for the user
     pub data: UserAboutData,
 }
 

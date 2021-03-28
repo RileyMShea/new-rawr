@@ -171,8 +171,8 @@ impl<'a> MessageInterface<'a> {
 
     /// Composes a private message to send to a user.
     /// # Examples
-    /// ```rust,no_run
-    /// use new_rawr::prelude::*;
+    /// ```no_run
+    ///
     /// let client = RedditClient::new("new_rawr", AnonymousAuthenticator::new());
     /// client.messages().compose("Aurora0001", "Test", "Hi!");
     // ```
@@ -207,7 +207,7 @@ impl<'a> MessageInterface<'a> {
     /// and private messages.
     /// # Examples
     /// ```rust,no_run
-    /// use new_rawr::prelude::*;
+    ///
     /// use new_rawr::auth::PasswordAuthenticator;
     /// use new_rawr::client::RedditClient;
     /// let client = RedditClient::new("new_rawr", PasswordAuthenticator::new("a", "b", "c", "d"));

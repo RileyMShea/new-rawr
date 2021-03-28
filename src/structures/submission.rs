@@ -183,8 +183,8 @@ impl<'a> Submission<'a> {
     /// it from the iterator. Comments will be ordered from oldest to newest, with up to 5 comments
     /// that exist being yielded at a time. This will poll the API every 5 seconds for updates.
     /// # Examples
-    /// ```rust,no_run
-    /// use new_rawr::prelude::*;
+    /// ```no_run
+    ///
     /// let client = RedditClient::new("new_rawr", AnonymousAuthenticator::new());
     /// let sub = client.subreddit("all");
     /// let mut listing = sub.hot(ListingOptions::default()).expect("Could not fetch listing!");

@@ -169,12 +169,6 @@ impl RedditClient {
         }
         builder.method(Method::GET).uri(url).header(USER_AGENT, self.user_agent.to_owned())
     }
-    // let mut authenticator = self.get_authenticator();
-    // let url = self.build_url(dest, oauth_required, &mut authenticator);
-    // let req = self.client.get(Uri::from_str(url.as_str()).unwrap());
-    // let mut headers = authenticator.headers();
-    // headers.insert(USER_AGENT,(self.user_agent.to_owned().parse().unwrap()));
-    // req.headers(headers)
 
     /// Sends a GET request with the specified parameters, and returns the resulting
     /// deserialized object.
@@ -281,7 +275,7 @@ impl RedditClient {
     /// specified post. The **full** name of the item should be used.
     /// # Examples
     /// ```
-    /// use new_rawr::prelude::*;
+    ///
     /// use new_rawr::client::RedditClient;
     /// use new_rawr::auth::AnonymousAuthenticator;
     /// let client = RedditClient::new("new_rawr", AnonymousAuthenticator::new());
@@ -296,7 +290,7 @@ impl RedditClient {
     /// `unread`, etc.)
     /// # Examples
     /// ```rust,no_run
-    /// use new_rawr::prelude::*;
+    ///
     /// use new_rawr::auth::PasswordAuthenticator;
     /// use new_rawr::client::RedditClient;
     /// use new_rawr::options::ListingOptions;

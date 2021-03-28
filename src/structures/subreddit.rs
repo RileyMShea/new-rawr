@@ -61,8 +61,10 @@ impl<'a> Subreddit<'a> {
     /// Gets a `PostStream` of the new posts in the subreddit. The iterator will yield values
     /// forever, unless it is manually ended at some point. For tips, check the `PostStream` class.
     /// # Examples
-    /// ```rust,no_run
-    /// use new_rawr::prelude::*;
+    /// ```no_run
+    ///
+    /// use new_rawr::auth::AnonymousAuthenticator;
+    /// use new_rawr::client::RedditClient;
     /// let client = RedditClient::new("new_rawr", AnonymousAuthenticator::new());
     /// let askreddit = client.subreddit("askreddit");
     /// for post in askreddit.new_stream() {
@@ -200,8 +202,8 @@ impl<'a> Subreddit<'a> {
     /// information.
     /// # Examples
     /// ```
-    /// use new_rawr::client::RedditClient;
     /// use new_rawr::auth::AnonymousAuthenticator;
+    /// use new_rawr::client::RedditClient;
     /// let client = RedditClient::new("new_rawr", AnonymousAuthenticator::new());
     /// let learn_programming = client.subreddit("learnprogramming").about()
     ///     .expect("Could not fetch 'about' data");
