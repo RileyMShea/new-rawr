@@ -15,7 +15,7 @@ use crate::responses::listing::CommentResponse;
 
 /// Structure representing a link post or self post (a submission) on Reddit.
 pub struct Submission<'a> {
-    data: listing::SubmissionData,
+    pub data: listing::SubmissionData,
     client: &'a RedditClient,
 }
 
