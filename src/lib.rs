@@ -241,6 +241,19 @@ mod tests {
         let hot_list = hot.take(26).collect::<Vec<Submission>>();
         assert_eq!(hot_list.len() as usize, 26);
     }
+    #[test]
+    fn user_data_test() {
+        let client = RedditClient::new("new_rawr", AnonymousAuthenticator::new());
+        let user = client.user("KingTuxWH");
+        assert_eq!(user.about().unwrap().data.name, "KingTuxWH");
+        let user = client.user("KingTuxWH");
+
+        let take = user.submissions().unwrap().take(5).collect::<Vec<Submission>>();
+        let x = take.get(0).take().unwrap();
+        println!("{}", x.link_url().unwrap());
+        let user = client.user("LordPenguin42");
+        assert_eq!(user.about().unwrap().data.name, "LordPenguin42")
+    }
 
     #[test]
     fn test_invite() {
@@ -263,4 +276,6 @@ mod tests {
             println!("{}", result.err().unwrap());
         }
     }
+
+
 }

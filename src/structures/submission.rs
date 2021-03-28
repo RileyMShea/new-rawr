@@ -113,8 +113,7 @@ impl<'a> Content for Submission<'a> {
     fn delete(self) -> Result<(), APIError> {
         let body = format!("id={}", self.data.name);
         self.client.post_success("/api/del", &body, false)
-    }6
-
+    }
     fn name(&self) -> &str {
         &self.data.name
     }

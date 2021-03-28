@@ -2,11 +2,12 @@ use crate::structures::submission::FlairList;
 use crate::structures::listing::Listing;
 use crate::client::RedditClient;
 use crate::responses::FlairSelectorResponse;
-use crate::responses::user::{UserAbout as _UserAbout, UserAboutData};
+use crate::responses::user::{UserAbout as _UserAbout, UserAboutData, UserAboutDataCore};
 use crate::responses::listing::Listing as _Listing;
 use crate::traits::Created;
 use crate::errors::APIError;
 use crate::structures::comment_list::CommentList;
+use crate::responses::comment::CommentListing;
 
 /// Interface to a Reddit user, which can be used to access their karma and moderator status.
 pub struct User<'a> {
@@ -80,20 +81,27 @@ impl<'a> User<'a> {
     /// assert_eq!(i, 5);
     /// ```
     pub fn submissions(&self) -> Result<Listing, APIError> {
-        let url = format!("/user/{}/comments?raw_json=1", self.name);
+        let url = format!("/user/{}/submitted?raw_json=1", self.name);
         let result = self.client
             .get_json(&url, false).unwrap();
         let result: _Listing = serde_json::from_str(&*result).unwrap();
         Ok(Listing::new(self.client, url, result.data))
     }
     // TODO: implement comment, overview, gilded listings etc.
-
-
+    //Incomplete get comments
+    pub fn comments(&self) -> Result<CommentListing, APIError> {
+        let url = format!("/user/{}/comments?raw_json=1", self.name);
+        let result = self.client
+            .get_json(&url, false).unwrap();
+        let result: CommentListing = serde_json::from_str(&*result).unwrap();
+        //TODO make structure for Comments
+        Ok(result)
+    }
 }
 
 /// Information about a user from /r/username/about, such as karma and ID.
 pub struct UserAbout {
-    data: UserAboutData,
+    pub data: UserAboutData,
 }
 
 impl UserAbout {
@@ -101,9 +109,9 @@ impl UserAbout {
     pub fn new(client: &RedditClient, name: String) -> Result<UserAbout, APIError> {
         let url = format!("/user/{}/about?raw_json=1", name);
         let result = client.get_json(&url, false).unwrap();
-        let result: UserAboutData = serde_json::from_str(&*result).unwrap();
-        Ok(UserAbout{
-            data: result
+        let result: UserAboutDataCore = serde_json::from_str(&*result).unwrap();
+        Ok(UserAbout {
+            data: result.data
         })
     }
 
