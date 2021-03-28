@@ -146,7 +146,6 @@ impl Authenticator for PasswordAuthenticator {
         let body = format!("grant_type=password&username={}&password={}",
                            &self.username,
                            &self.password);
-        println!("{}", &body);
         let request = Request::builder().method(Method::POST).uri(url)
             .header(AUTHORIZATION, format!("Basic {}", base64::encode(format!("{}:{}", self.client_id.to_owned(), self.client_secret.to_owned()))))
             .header(CONTENT_TYPE, "application/x-www-form-urlencoded")
@@ -170,7 +169,6 @@ impl Authenticator for PasswordAuthenticator {
 
             let value = String::from_utf8(value.unwrap().to_vec());
             let string = value.unwrap();
-            println!("{}", &string);
             let token_response: TokenResponseData = serde_json::from_str(&string).unwrap();
             self.access_token = Some(token_response.access_token);
             Ok(())

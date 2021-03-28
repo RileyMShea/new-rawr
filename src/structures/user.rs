@@ -6,6 +6,7 @@ use crate::responses::user::{UserAbout as _UserAbout, UserAboutData};
 use crate::responses::listing::Listing as _Listing;
 use crate::traits::Created;
 use crate::errors::APIError;
+use crate::structures::comment_list::CommentList;
 
 /// Interface to a Reddit user, which can be used to access their karma and moderator status.
 pub struct User<'a> {
@@ -66,7 +67,9 @@ impl<'a> User<'a> {
     /// listing and will continue yielding items until every item has been exhausted.
     /// # Examples
     /// ```
-    /// use new_rawr::prelude::*;
+    ///
+    /// use new_rawr::client::RedditClient;
+    /// use new_rawr::auth::AnonymousAuthenticator;
     /// let client = RedditClient::new("new_rawr", AnonymousAuthenticator::new());
     /// let user = client.user("Aurora0001");
     /// let submissions = user.submissions().expect("Could not fetch!");
@@ -77,13 +80,14 @@ impl<'a> User<'a> {
     /// assert_eq!(i, 5);
     /// ```
     pub fn submissions(&self) -> Result<Listing, APIError> {
-        let url = format!("/user/{}/submitted?raw_json=1", self.name);
+        let url = format!("/user/{}/comments?raw_json=1", self.name);
         let result = self.client
             .get_json(&url, false).unwrap();
         let result: _Listing = serde_json::from_str(&*result).unwrap();
         Ok(Listing::new(self.client, url, result.data))
     }
     // TODO: implement comment, overview, gilded listings etc.
+
 
 }
 

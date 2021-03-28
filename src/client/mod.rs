@@ -200,7 +200,6 @@ impl RedditClient {
     pub fn post(&self, dest: &str, oauth_required: bool) -> Builder {
         let mut authenticator = self.get_authenticator();
         let url = self.build_url(dest, oauth_required, &mut authenticator);
-        println!("{}", &url);
         let mut builder = Request::builder().method(Method::POST).uri(url);
         for x in authenticator.headers() {
             builder = builder.header(x.0, x.1);

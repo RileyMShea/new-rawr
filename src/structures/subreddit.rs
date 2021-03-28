@@ -30,7 +30,6 @@ impl<'a> Subreddit<'a> {
         let full_uri = format!("{}&{}", uri, opts.anchor);
         let string = self.client
             .get_json(&full_uri, false).unwrap();
-        println!("{}", &string);
         let string: listing::Listing = serde_json::from_str(&*string).unwrap();
         Ok(Listing::new(self.client, uri, string.data))
     }
