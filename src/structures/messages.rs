@@ -171,7 +171,7 @@ impl<'a> MessageInterface<'a> {
 
     /// Composes a private message to send to a user.
     /// # Examples
-    /// ```no_run
+    /// ```ignore
     ///
     /// let client = RedditClient::new("new_rawr", AnonymousAuthenticator::new());
     /// client.messages().compose("Aurora0001", "Test", "Hi!");

@@ -95,7 +95,7 @@ impl<'a> Subreddit<'a> {
     /// Gets a listing of the rising feed for this subreddit. Usually much shorter than the other
     /// listings; may be empty.
     /// # Examples
-    /// ```
+    /// ```ignore
     /// use new_rawr::client::RedditClient;
     /// use new_rawr::options::ListingOptions;
     /// use new_rawr::auth::AnonymousAuthenticator;
@@ -113,7 +113,7 @@ impl<'a> Subreddit<'a> {
     /// `new_rawr::options::TimeFilter`) which is equivalent to the "links from: all time" dropdown
     /// on the website.
     /// # Examples
-    /// ```
+    /// ```ignore
     /// use new_rawr::client::RedditClient;
     /// use new_rawr::options::{ListingOptions, TimeFilter};
     /// use new_rawr::auth::AnonymousAuthenticator;
@@ -148,7 +148,7 @@ impl<'a> Subreddit<'a> {
     /// let post = LinkPost::new("new_rawr!", "http://example.com").resubmit();
     /// ```
     /// ## Submitting a post
-    /// ```rust,no_run
+    /// ```rust,ignore
     /// use new_rawr::auth::PasswordAuthenticator;
     /// use new_rawr::client::RedditClient;
     /// use new_rawr::options::LinkPost;
@@ -170,7 +170,7 @@ impl<'a> Subreddit<'a> {
     /// Submits a text post (self post) to this subreddit using the specified title and body.
     /// # Examples
     /// ## Submitting a post
-    /// ```rust,no_run
+    /// ```rust,ignore
     /// use new_rawr::auth::PasswordAuthenticator;
     /// use new_rawr::client::RedditClient;
     /// use new_rawr::options::SelfPost;
@@ -201,7 +201,7 @@ impl<'a> Subreddit<'a> {
     /// Fetches information about a subreddit such as subscribers, active users and sidebar
     /// information.
     /// # Examples
-    /// ```
+    /// ```ignore
     /// use new_rawr::auth::AnonymousAuthenticator;
     /// use new_rawr::client::RedditClient;
     /// let client = RedditClient::new("new_rawr", AnonymousAuthenticator::new());

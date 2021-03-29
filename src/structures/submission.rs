@@ -15,6 +15,7 @@ use crate::responses::listing::CommentResponse;
 
 /// Structure representing a link post or self post (a submission) on Reddit.
 pub struct Submission<'a> {
+    ///The backend submission data
     pub data: listing::SubmissionData,
     client: &'a RedditClient,
 }
@@ -183,7 +184,7 @@ impl<'a> Submission<'a> {
     /// it from the iterator. Comments will be ordered from oldest to newest, with up to 5 comments
     /// that exist being yielded at a time. This will poll the API every 5 seconds for updates.
     /// # Examples
-    /// ```no_run
+    /// ```ignore
     ///
     /// let client = RedditClient::new("new_rawr", AnonymousAuthenticator::new());
     /// let sub = client.subreddit("all");
@@ -458,7 +459,7 @@ impl<'a> LazySubmission<'a> {
         let url = format!("/by_id/{}?raw_json=1", self.id);
         let string = self.client
             .get_json(&url, false).unwrap();
-        let mut string: listing::Listing = serde_json::from_str(&*string).unwrap();
+        let string: listing::Listing = serde_json::from_str(&*string).unwrap();
         let mut string = Listing::new(self.client, url, string.data);
         Ok(string.next().unwrap())
     }

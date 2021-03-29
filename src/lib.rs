@@ -256,6 +256,7 @@ mod tests {
     }
 
     #[test]
+    #[ignore]
     fn test_invite() {
         println!("1");
         dotenv().ok();

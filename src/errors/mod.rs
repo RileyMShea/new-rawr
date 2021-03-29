@@ -1,8 +1,9 @@
 use std::error::Error;
-use std::fmt::{Display, Result as FmtResult, Formatter};
+use std::fmt::{Display, Formatter, Result as FmtResult};
+
 use hyper;
-use serde_json;
 use hyper::StatusCode;
+use serde_json;
 
 /// Error type that occurs when an API request fails for some reason.
 #[derive(Debug)]
@@ -19,7 +20,7 @@ pub enum APIError {
     /// Occurs if JSON deserialization fails. This will always be a bug, so please report it
     /// if it does occur, but the error type is provided so you can fail gracefully.
     JSONError(serde_json::Error),
-
+    ///The token has expired.
     ExpiredToken,
 }
 
@@ -37,7 +38,7 @@ impl Error for APIError {
             APIError::JSONError(_) => {
                 "The JSON sent by Reddit did not match what new_rawr was expecting"
             }
-            APIError::ExpiredToken=>{
+            APIError::ExpiredToken => {
                 "ExpiredToken"
             }
             _ => "This error should not have occurred. Please file a bug",

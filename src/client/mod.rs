@@ -27,31 +27,29 @@
 //! let client = RedditClient::new(agent, AnonymousAuthenticator::new());
 //! ```
 
-use std::sync::{Arc, Mutex, MutexGuard};
+use std::borrow::Borrow;
+use std::error::Error;
 use std::io::Read;
-
-use hyper::client::{Client, HttpConnector};
-use hyper::{StatusCode, Request, Method, Body};
-
-use serde_json::from_str;
-use serde::Deserialize;
-
-
-use hyper::Uri;
+use std::panic::resume_unwind;
 use std::str::FromStr;
+use std::sync::{Arc, Mutex, MutexGuard};
+
+use futures::AsyncReadExt;
+use hyper::{Body, Method, Request, StatusCode};
+use hyper::client::{Client, HttpConnector};
 use hyper::header::USER_AGENT;
-use crate::errors::APIError;
+use hyper::http::request::Builder;
+use hyper::Uri;
+use hyper_tls::HttpsConnector;
+use serde::Deserialize;
+use serde_json::from_str;
+
 use crate::auth::Authenticator;
+use crate::errors::APIError;
+use crate::structures::messages::MessageInterface;
+use crate::structures::submission::LazySubmission;
 use crate::structures::subreddit::Subreddit;
 use crate::structures::user::User;
-use futures::AsyncReadExt;
-use crate::structures::submission::LazySubmission;
-use crate::structures::messages::MessageInterface;
-use hyper::http::request::Builder;
-use std::borrow::Borrow;
-use hyper_tls::HttpsConnector;
-use std::panic::resume_unwind;
-use std::error::Error;
 
 /// A client to connect to Reddit. See the module-level documentation for examples.
 pub struct RedditClient {
@@ -112,7 +110,8 @@ impl RedditClient {
         let res = lambda();
         match res {
             Err(APIError::HTTPError(StatusCode::UNAUTHORIZED)) => {
-                self.get_authenticator().refresh_token(&self.client, &self.user_agent);
+                self.get_authenticator().refresh_token(&self.client, &self.user_agent).expect("Authentication failed. Did you use the correct username/password?");
+                ;
                 lambda()
             }
             _ => res,
@@ -167,7 +166,7 @@ impl RedditClient {
         let mut headers = authenticator.headers();
         if headers.is_err() {
             if headers.err().unwrap().to_string().eq("ExpiredToken") {
-                authenticator.login(&self.client, &*self.user_agent);
+                authenticator.login(&self.client, &*self.user_agent).expect("Authentication failed. Did you use the correct username/password?");
             }
         }
         headers = authenticator.headers();
