@@ -13,6 +13,7 @@ pub type CommentResponse = (Listing, CommentListing);
 /// API response from /r/subreddit/about
 pub type SubredditAbout = BasicThing<SubredditAboutData>;
 
+
 #[derive(Deserialize, Debug)]
 pub struct SubredditAboutData {
     pub subscribers: u64,
@@ -39,7 +40,7 @@ pub struct SubredditAboutData {
     pub submit_text_html: String,
     pub submit_text_label: Option<String>,
     pub submit_link_label: Option<String>,
-    pub comment_score_hide_mins: u64
+    pub comment_score_hide_mins: u64,
     // CSS fields omitted
 }
 
@@ -52,6 +53,17 @@ pub struct ListingData<T> {
     pub before: Option<String>,
     pub after: Option<String>,
     pub children: Vec<BasicThing<T>>,
+}
+
+/// API response from r/{subreddit}/about/contributors
+#[derive(Deserialize, Debug)]
+pub struct UserListing {
+    /// A modhash (essentially a CSRF token) generated for this request. This is generally
+    /// not required for any use-case, but is provided nevertheless.
+    pub modhash: Option<String>,
+    pub before: Option<String>,
+    pub after: Option<String>,
+    pub children: Vec<UserListingData>,
 }
 
 /// Represents all types of link posts and self posts on Reddit.
@@ -187,5 +199,19 @@ pub struct SubmissionData {
     /// This is `true` if the user has visited this link.
     pub visited: bool,
     /// The number of reports, if the user is a moderator of this subreddit.
-    pub num_reports: Option<u64>
+    pub num_reports: Option<u64>,
 }
+
+/// Represents data responded in a user listing
+#[derive(Deserialize, Debug)]
+pub struct UserListingData {
+    /// Date
+    pub date: i64,
+    /// rel_id
+    pub rel_id: String,
+    /// The username
+    pub name: String,
+    /// the id
+    pub id: String,
+}
+

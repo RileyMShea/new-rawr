@@ -1,10 +1,10 @@
 use crate::structures::submission::FlairList;
 use crate::structures::listing::Listing;
 use crate::client::RedditClient;
-use crate::responses::FlairSelectorResponse;
+use crate::responses::{FlairSelectorResponse, listing};
 use crate::responses::user::{UserAbout as _UserAbout, UserAboutData, UserAboutDataCore};
-use crate::responses::listing::Listing as _Listing;
-use crate::traits::Created;
+use crate::responses::listing::{Listing as _Listing, UserListingData};
+use crate::traits::{Created, PageListing};
 use crate::errors::APIError;
 use crate::structures::comment_list::CommentList;
 use crate::responses::comment::CommentListing;
@@ -139,5 +139,74 @@ impl Created for UserAbout {
 
     fn created_utc(&self) -> i64 {
         self.data.created_utc as i64
+    }
+}
+
+
+pub struct UserListing<'a> {
+    client: &'a RedditClient,
+    query_stem: String,
+    data: listing::UserListing,
+}
+
+impl<'a> UserListing<'a> {
+    /// Internal method. Use other functions that return Listings, such as `Subreddit.hot()`.
+    pub fn new(client: &RedditClient,
+               query_stem: String,
+               data: listing::UserListing)
+               -> UserListing {
+        UserListing {
+            client: client,
+            query_stem: query_stem,
+            data: data,
+        }
+    }
+}
+
+impl<'a> PageListing for UserListing<'a> {
+    fn before(&self) -> Option<String> {
+        self.data.before.to_owned()
+    }
+
+    fn after(&self) -> Option<String> {
+        self.data.after.to_owned()
+    }
+
+    fn modhash(&self) -> Option<String> {
+        self.data.modhash.to_owned()
+    }
+}
+
+impl<'a> UserListing<'a> {
+    fn fetch_after(&mut self) -> Result<UserListing<'a>, APIError> {
+        match self.after() {
+            Some(after_id) => {
+                let url = format!("{}&after={}", self.query_stem, after_id);
+                let string = self.client
+                    .get_json(&url, false).unwrap();
+                let string: listing::UserListing = serde_json::from_str(&*string).unwrap();
+                Ok(UserListing::new(self.client, self.query_stem.to_owned(), string))
+            }
+            None => Err(APIError::ExhaustedListing),
+        }
+    }
+}
+
+impl<'a> Iterator for UserListing<'a> {
+    type Item = User<'a>;
+    fn next(&mut self) -> Option<User<'a>> {
+        if self.data.children.is_empty() {
+            if self.after().is_none() {
+                None
+            } else {
+                let mut new_listing = self.fetch_after().expect("After does not exist!");
+                self.data.children.append(&mut new_listing.data.children);
+                self.data.after = new_listing.data.after;
+                self.next()
+            }
+        } else {
+            let child = self.data.children.drain(..1).next().unwrap();
+            Some(User::new(self.client, child.name.as_str()))
+        }
     }
 }

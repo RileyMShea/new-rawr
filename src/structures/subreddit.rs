@@ -7,6 +7,9 @@ use crate::responses::listing;
 use crate::traits::Created;
 use crate::errors::APIError;
 use crate::structures::listing::PostStream;
+use hyper::Body;
+use crate::structures::user::UserListing;
+use std::error::Error;
 
 /// The `Subreddit` struct represents a subreddit and allows access to post listings
 /// and data about the subreddit.
@@ -217,7 +220,19 @@ impl<'a> Subreddit<'a> {
         let string: listing::SubredditAboutData = serde_json::from_str(&*string).unwrap();
         Ok(SubredditAbout::new(string))
     }
-
+    ///  Get users
+    pub fn contributors(&self) -> Result<UserListing, APIError> {
+        let url = format!("/r/{}/about/contributors?raw_json=1", self.name);
+        let string = self.client
+            .get_json(&url, false).unwrap();
+        let json: Result<listing::UserListing,  serde_json::Error> = serde_json::from_str(string.as_str());
+        if json.is_err() {
+            println!("{}", &json.err().unwrap().to_string());
+            return Err(APIError::ExhaustedListing);
+        }else {
+           return Ok(UserListing::new(self.client, url, json.unwrap()));
+        }
+    }
     /// Subscribes to the specified subredit, returning the result to show whether the API call
     /// succeeded or not.
     pub fn subscribe(&self) -> Result<(), APIError> {
