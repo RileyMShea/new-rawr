@@ -277,24 +277,5 @@ mod tests {
             println!("{}", result.err().unwrap());
         }
     }
-    #[ignore]
-    #[test]
-    fn test_contributors() {
-        println!("1");
-        dotenv().ok();
-        println!("1");
-        let arc = PasswordAuthenticator::new(
-            dotenv::var("CLIENT_KEY").unwrap().as_str(),
-            dotenv::var("CLIENT_SECRET").unwrap().as_str(),
-            dotenv::var("USER").unwrap().as_str(),
-            dotenv::var("PASSWORD").unwrap().as_str());
-        let client = RedditClient::new("new_rawr", arc);
 
-        println!("1");
-        println!("Hey2");
-        let subreddit = client.subreddit("royal");
-        println!("Hey3");
-        let result = subreddit.contributors();
-
-    }
 }
